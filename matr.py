@@ -108,8 +108,6 @@ class Matr:
         return retmatr
 
 
-    # def __iter__(self, axis=0):
-    #     for a in range():
     def __repr__(self):
         return 'Matr(file={}, header={}, data={})'.format(repr(self.file), repr(self.header), repr(self.data))
 
@@ -132,6 +130,13 @@ class Matr:
     def __rshift__(self, fout):
         """ self >> fout :: writes self to fout, """
         return self.tofile(fout)
+
+    def __len__(self): 
+        return len(self.data.values()[0]) #the length of rows
+
+    def __iter__(self, axis=0):
+        for a in range(len(self)):
+
 
     def __getitem__(self, val, useindexing = None):
         if useindexing == None:
