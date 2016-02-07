@@ -12,13 +12,10 @@ class matr(npmatr):
     def __new__(self, file = None, data = [], skipchar = None):
         if file:
             ret = matr().__rrshift__(file)
-            ret.file = file
-            print('ret:',ret)
-            return ret
-        return super().__new__(self, data)
-
-    def __init__(self, data = None, file = None):
-        self.file = file
+        else:
+            ret = super().__new__(self, data)    
+        ret.file = file
+        return ret
 
     def __str__(self):
         return 'file \'{}\':\n{}'.format(self.file, super().__str__())
@@ -31,7 +28,9 @@ class matr(npmatr):
     def __rrshift__(self, iterable, skipchar = None):
         """ inputfile >> self :: Sets self to the matrix read from the input file"""
         if isinstance(iterable, str):
-            return self.__rrshift__(csv.reader(open(iterable)))
+            ret = self.__rrshift__(csv.reader(open(iterable)))
+            ret.file = iterable #its a string
+            return ret
         elif not hasattr(iterable, '__iter__') and not hasattr(iterable, '__next__'):
             return NotImplemented
         return matr(data = matr._npmatrfromfile(iterable, skipchar or matr.defaultskipchar))
@@ -63,10 +62,8 @@ class matr(npmatr):
         return self
 
     def __exit__(self, type, value, traceback):
-        print('todo;exit')
-        # if type is None:
-            # if self.file != None:
-                # return self.__rshift__(self.file)
+        if type is None and self.file != None:
+            return self.__rshift__(self.file)
         return True
     def _npmatrfromfile(iterable, skipchar):
         mdata = []
@@ -97,11 +94,6 @@ class matr(npmatr):
 def main():
     with matr('testdata.txt') as m:
         m['ant','legs'] = 8
-        print('mmm:',m)
-    m = 'testdata.txt' >> matr()
-    print(m)
-    # m['ant','legs'] = 6
-    # m >> 'testdata.txt'
 if __name__ == '__main__':
     main()
 
