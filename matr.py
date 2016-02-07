@@ -4,119 +4,74 @@ try:
 except ImportError:
     warn('module \'csv\' could not be imported!')
 
-class Matr:
+class Matr(list):
 
-    class _rowcl(list):
-        def __new__(self, matr, key, iterable):
-            return super().__new__(self, iterable)
+    def __new__(self, file = None, data = [], dtype = float):
+        return super().__new__(self, data)
 
-        def __init__(self, matr, key, iterable):
-            super().__init__(iterable)
-            self.matr = matr
-            self.key = key
-
-        def __getitem__(self, val):
-            if isinstance(val, slice):
-                assert 0
-            return super().__getitem__(self.matr.header.index(val) if isinstance(val, str) else val)
-        def __str__(self):
-            return str(self.key) + str(super())
-    class _keycl(tuple):
-
-        def __new__(self, matr, vals):
-            return super().__new__(self, vals)
-
-        @property
-        def id(self):
-            return self[0]
-
-        @property
-        def pos(self):
-            return self[1]
-        
-            
-
-    def __init__(self,
-                 file = None,
-                 header = None,
-                 data = None,
-                 valtype = float,
-                 hdrtype = str,
-                 idtype = str):
-
-        """ if you pass a file to it, it will only read it if there is no header or data"""
-
+    def __init__(self, file = None, data = [], dtype = float):
+        super().__init__(Matr.fromfile(file, dtype = dtype) if file and not data else data)
         self.file = file
-        if self.file and not (header or data):
-            matr = Matr.fromfile(file)
-            self.header = matr.header
-            self.data = matr.data
-        else:
-            self.header = header
-            self.data = data
-        self.valtype = valtype
-        self.hdrtype = hdrtype
-        self.idtype = idtype
+        self.dtype = dtype
 
-    @staticmethod
-    def fromfile(fin,
-                 valtype = float,
-                 hdrtype = str,
-                 idtype = str,
-                 hasheader = True,
-                 hasIds = True,
-                 skipchar = '#',
-                 splitchar = ','):
-        """ splitchar is only when no csv """
-        file = None
-        import io
-        if isinstance(fin, str):
-            file = fin
-            fin = csv.reader(open(fin, 'r'))
-        elif isinstance(fin, io.IOBase):
-            file = fin.name
-            fin = csv.reader(fin)
-        del io
-        if __debug__:
-            assert hasattr(fin, '__iter__'), 'cannot iterate over type \'{}\'!'.format(type(fin))
-        idn = 0
+    def __getitem__(self, val):
+        row, col = isinstance(val, tuple) and val or (val, slice(None))
+        row = self.indrow(row)
+        col = self.indcol(col)
+        return super().__getitem__(row).__getitem__(col)
 
-        if hasheader:
-            header = [hdrtype(colname) for colname in next(fin)][hasIds:]
-        data = {}
+    def indrow(self, row):
+        if isinstance(row, slice):
+            return slice(self.indrow(row.start), self.indrow(row.stop), self.indrow(row.step))
+        if isinstance(row, int):
+            return row
+        for i in range(self.rows):
+            if row == self[i,0]:
+                return i
+        return row
+    def indcol(self, col):
+        if isinstance(col, slice):
+            return slice(self.indcol(col.start), self.indcol(col.stop), self.indcol(col.step))
+        if isinstance(col, int):
+            return col
+        for i in range(self.cols):
+            if col == self[0,i]:
+                return i
+        return col
 
-        retmatr = Matr(valtype = valtype, hdrtype = hdrtype, idtype = idtype)
-        retmatr.file = file
-        for line in fin:
-            if not isinstance(line, list):
-                if __debug__:
-                    assert isinstance(line, str)
-                line = line.split(splitchar)
-
-            if not hasIds:
-                line.insert(0, str(idn))
-            if not line[0][0] == skipchar:
-                key = Matr._keycl(retmatr, (idtype(line[0]), idn))
-                data[key] = Matr._rowcl(retmatr, key, [valtype(val) for val in line[1:]])
-            idn += 1
-
-        if not hasheader:
-            header = [hdrtype(pos) for pos in range(len(tuple(data.values())[0]))]
-
-        retmatr.header = header
-        retmatr.data = data
-        return retmatr
+    # def __getitem__(self, val, useindexing = None):
+    #     if useindexing == None:
+    #         useindexing = not hasattr(self.idtype, '__int__')
+    #     if __debug__:
+    #         assert not isinstance(val, tuple) or len(val) == 2, \
+    #         'val needs to be (row, col) or just row\n' + str(val)
+    #     print(row,col)
+    #     print(self)
+    #     for rowkey in self.data.keys():
+    #         if self.idtype(row) == rowkey.id or useindexing and int(row) == rowkey.pos:
+    #             return self.data[rowkey]
+    #     return None
 
 
-    def __repr__(self):
-        return 'Matr(file={}, header={}, data={})'.format(repr(self.file), repr(self.header), repr(self.data))
 
-    def __str__(self):
-        ret = 'Matrix for file \'{}\''.format(self.file)
-        maxls = (max() for col in self.cols)
-        print(maxls)
-        return ret
+    def __enter__(self):
+        return self
 
+    def __exit__(self, type, value, traceback):
+        if type != None:
+            raise
+        elif self.file != None:
+            self >> self.file
+        return True
+
+    @property
+    def rows(self):
+        return len(self)
+
+    @property
+    def cols(self):
+        return len(super().__getitem__(0))
+    
     def __lshift__(self, fout):
         return self.__rrshift__(fout)
 
@@ -131,53 +86,46 @@ class Matr:
         """ self >> fout :: writes self to fout, """
         return self.tofile(fout)
 
-    def __len__(self): 
-        return len(self.data.values()[0]) #the length of rows
-
-    def __iter__(self, axis=0):
-        for a in range(len(self)):
-
-
-    def __getitem__(self, val, useindexing = None):
-        if useindexing == None:
-            useindexing = not hasattr(self.idtype, '__int__')
-        if __debug__:
-            assert not isinstance(val, tuple) or len(val) == 2, \
-            'val needs to be (row, col) or just row\n' + str(val)
-        row, col = isinstance(val, tuple) and val or (val, slice(None))
-        print(row,col)
-        print(self)
-        # for rowkey in self.data.keys():
-        #     if self.idtype(row) == rowkey.id or useindexing and int(row) == rowkey.pos:
-        #         return self.data[rowkey]
-        # return None
-
-    # def __setitem__(self, val, toset):
-    #     return super().__setitem__(self._transrowcol(*val if isinstance(val, tuple) else (val, slice(None))), toset)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        print('todo: __exit__')
-        if type is None:
-            pass
-            # if self.file != None:
-                # return self.tofile()
+    @staticmethod
+    def fromfile(fin,
+                 dtype = float,
+                 hasheader = True,
+                 hasIds = True,
+                 skipchar = '#',
+                 splitchar = ','):
+        """ splitchar is only when no csv """
+        import io
+        if isinstance(fin, str):
+            file = fin
+            fin = csv.reader(open(fin, 'r'))
+        elif isinstance(fin, io.IOBase):
+            file = fin.name
+            fin = csv.reader(fin)
         else:
-            raise #type(value, traceback)
-        return True
+            raise TypeError("No known way to read from file type '%s'." % type(fin))
+        del io
 
-    def _transrowcol(self, row, col = slice(None)):
-        """ translates rows and columns into their respective strings..."""
-        try:
-            if isinstance(row, str):
-                row = self[:, 0].flatten().tolist()[0].index(row)
-            if isinstance(col, str):
-                col = self[0, ].flatten().tolist()[0].index(col)
-            return (row, col)
-        except ValueError:
-            raise
+        if __debug__:
+            assert hasattr(fin, '__iter__'), 'cannot iterate over type \'{}\'!'.format(type(fin))
+
+        data = []
+        for line in fin:
+            if not isinstance(line, list):
+                if __debug__:
+                    assert isinstance(line, str)
+                line = line.split(splitchar)
+
+            if not hasIds:
+                line.insert(0, str(idn))
+
+            if not line[0][0] == skipchar:
+                data.append([])
+                for val in line:
+                    try:
+                        data[-1].append(dtype(val))
+                    except ValueError:
+                        data[-1].append(str(val))
+        return Matr(file = file, data = data)
 
     def tofile(self, fout = None):
         if fout == None:
@@ -199,10 +147,8 @@ class Matr:
 
 
 def main():
-    # with Matr('testdata.txt') as m:
-        # print(m[0])
-    m = 'testdata.txt' >> Matr()
-    print(m[0])
+    with Matr('testdata.txt') as m:
+        print(m[1:])
     # sm.tofile()
 if __name__ == '__main__':
     main()
