@@ -6,10 +6,10 @@ except ImportError:
 
 class Matr(list):
 
-    def __new__(self, file = None, data = [], dtype = float):
+    def __new__(self, file = None, data = [], dtype = None):
         return super().__new__(self, data)
 
-    def __init__(self, file = None, data = [], dtype = float):
+    def __init__(self, file = None, data = [], dtype = None):
         super().__init__(Matr.fromfile(file, dtype = dtype) if file and not data else data)
         self.file = file
         self.dtype = dtype
@@ -64,14 +64,6 @@ class Matr(list):
             self >> self.file
         return True
 
-    @property
-    def rows(self):
-        return len(self)
-
-    @property
-    def cols(self):
-        return len(super().__getitem__(0))
-    
     def __lshift__(self, fout):
         return self.__rrshift__(fout)
 
@@ -87,12 +79,7 @@ class Matr(list):
         return self.tofile(fout)
 
     @staticmethod
-    def fromfile(fin,
-                 dtype = float,
-                 hasheader = True,
-                 hasIds = True,
-                 skipchar = '#',
-                 splitchar = ','):
+    def fromfile(fin, dtype = None, hasheader = True, hasIds = True, skipchar = '#', splitchar = ','):
         """ splitchar is only when no csv """
         import io
         if isinstance(fin, str):
@@ -109,6 +96,7 @@ class Matr(list):
             assert hasattr(fin, '__iter__'), 'cannot iterate over type \'{}\'!'.format(type(fin))
 
         data = []
+        dtypes = [dtype] if dtype else [int, float, complex, str]
         for line in fin:
             if not isinstance(line, list):
                 if __debug__:
@@ -117,14 +105,17 @@ class Matr(list):
 
             if not hasIds:
                 line.insert(0, str(idn))
-
             if not line[0][0] == skipchar:
                 data.append([])
                 for val in line:
-                    try:
-                        data[-1].append(dtype(val))
-                    except ValueError:
-                        data[-1].append(str(val))
+                    for datatype in dtypes:
+                        try:
+                            data[-1].append(datatype(val))
+                            break
+                        except ValueError:
+                            if dtypes[-1] == datatype:
+                                warn("no known way to coerce '{}' into {}!".format(val, dtypes))
+                                data[-1].append(val)
         return Matr(file = file, data = data)
 
     def tofile(self, fout = None):
@@ -145,11 +136,25 @@ class Matr(list):
                 return NotImplemented
         return self
 
+    @property
+    def rows(self):
+        return len(self)
 
+    @property
+    def cols(self):
+        return len(super().__getitem__(0))
+    
+    @property
+    def headers(self):
+        return self[0]
+
+    @property
+    def ids(self):
+        return [row[0] for row in self][1:]
+    
 def main():
     with Matr('testdata.txt') as m:
-        print(m[1:])
-    # sm.tofile()
+        print(m.ids, m.headers)
 if __name__ == '__main__':
     main()
 
