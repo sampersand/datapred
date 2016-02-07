@@ -1,4 +1,0 @@
-h1,h2,h3
-r1h1,r1h2,r1h3
-r2h1,r2h2,r2h3
-r3h1,r3h2,r3h3

@@ -10,49 +10,63 @@ class Matr(list):
         return super().__new__(self, data)
 
     def __init__(self, file = None, data = [], dtype = None):
-        super().__init__(Matr.fromfile(file, dtype = dtype) if file and not data else data)
+        # super().__init__(Matr.fromfile(file, dtype = dtype) if file and not data else data)
+        if file and not data:
+            super().__init__(Matr.fromfile(file, dtype = dtype))
+        else:
+            super().__init__(data)
         self.file = file
         self.dtype = dtype
 
     def __getitem__(self, val):
-        row, col = isinstance(val, tuple) and val or (val, slice(None))
-        row = self.indrow(row)
-        col = self.indcol(col)
-        return super().__getitem__(row).__getitem__(col)
+        if not isinstance(val, tuple):
+            ret = super().__getitem__(self.indrow(val))
+            if not isinstance(ret, Matr):
+                ret = Matr(data = ret)
+            ret.dtype = self.dtype
+            return ret
+        if __debug__:
+            assert len(val) == 2, 'cant have a getitem of length more than 2! ' + str(val)
+        ret = super().__getitem__(self.indrow(val[0])).__getitem__(self.indcol(val[1]))
+        return ret
 
     def indrow(self, row):
         if isinstance(row, slice):
-            return slice(self.indrow(row.start), self.indrow(row.stop), self.indrow(row.step))
+            return slice(self.indrow(row.start),\
+                         self.indrow(row.stop),\
+                         self.indrow(row.step))
         if isinstance(row, int):
             return row
-        for i in range(self.rows):
+        for i in range(len(self.rows)):
             if row == self[i,0]:
                 return i
         return row
+
     def indcol(self, col):
         if isinstance(col, slice):
-            return slice(self.indcol(col.start), self.indcol(col.stop), self.indcol(col.step))
+            return slice(self.indcol(col.start),\
+                         self.indcol(col.stop),\
+                         self.indcol(col.step))
         if isinstance(col, int):
             return col
-        for i in range(self.cols):
-            if col == self[0,i]:
+        for i in range(len(self.cols)):
+            if col == self[0, i]:
                 return i
         return col
 
-    # def __getitem__(self, val, useindexing = None):
-    #     if useindexing == None:
-    #         useindexing = not hasattr(self.idtype, '__int__')
-    #     if __debug__:
-    #         assert not isinstance(val, tuple) or len(val) == 2, \
-    #         'val needs to be (row, col) or just row\n' + str(val)
-    #     print(row,col)
-    #     print(self)
-    #     for rowkey in self.data.keys():
-    #         if self.idtype(row) == rowkey.id or useindexing and int(row) == rowkey.pos:
-    #             return self.data[rowkey]
-    #     return None
+    def __repr__(self):
+        return "Matr(file={},data={},dtype={})".format(self.file, super().__repr__(), self.dtype)
+
+    # def __str__(self):
+    #     ret = "Matrix (file = '{}', dtype = '{}')".format(self.file, self.dtype)
+    #     maxl = [max([e for e in col]) for col in self.cols]
+    #     print(maxl)
+    #     return ret
 
 
+
+    def __contains__(self, val):
+        return val in self.ids or super().__contains__(val)
 
     def __enter__(self):
         return self
@@ -79,7 +93,7 @@ class Matr(list):
         return self.tofile(fout)
 
     @staticmethod
-    def fromfile(fin, dtype = None, hasheader = True, hasIds = True, skipchar = '#', splitchar = ','):
+    def fromfile(fin, dtype = None, skipchar = '#', splitchar = ','):
         """ splitchar is only when no csv """
         import io
         if isinstance(fin, str):
@@ -96,17 +110,15 @@ class Matr(list):
             assert hasattr(fin, '__iter__'), 'cannot iterate over type \'{}\'!'.format(type(fin))
 
         data = []
-        dtypes = [dtype] if dtype else [int, float, complex, str]
+        dtypes = dtype if hasattr(dtype, "__getitem__") else [dtype] if dtype else [int, float, complex, str]
         for line in fin:
             if not isinstance(line, list):
                 if __debug__:
                     assert isinstance(line, str)
                 line = line.split(splitchar)
 
-            if not hasIds:
-                line.insert(0, str(idn))
             if not line[0][0] == skipchar:
-                data.append([])
+                data.append(Matr())
                 for val in line:
                     for datatype in dtypes:
                         try:
@@ -122,10 +134,11 @@ class Matr(list):
         if fout == None:
             fout = self.file
         if isinstance(fout, str):
-            return self.tofile(csv.writer(open(fout, 'w')))
+            fout = csv.writer(open(fout, 'w'))
         if __debug__:
             assert hasattr(fout, "writerow") or hasattr(fout, "write") or hasattr(fout, "writeline")
         for row in self:
+            row = [str(ele) for ele in row]
             if hasattr(fout, "writerow"): #AKA, if it's a csv writer.
                 fout.writerow(row)
             elif hasattr(fout, "writeline"):
@@ -138,12 +151,17 @@ class Matr(list):
 
     @property
     def rows(self):
-        return len(self)
+        return self
 
     @property
     def cols(self):
-        return len(super().__getitem__(0))
-    
+        ret = Matr(dtype = self.dtype)
+        # for row in range(len(self)):
+            # for col in range(len(self[0])):
+
+        return ret
+
+
     @property
     def headers(self):
         return self[0]
@@ -151,10 +169,12 @@ class Matr(list):
     @property
     def ids(self):
         return [row[0] for row in self][1:]
-    
+
 def main():
-    with Matr('testdata.txt') as m:
-        print(m.ids, m.headers)
+    m = Matr() << 'testdata.txt'
+    print(type(m[0:]),m[0:])
+    # with Matr('testdata.txt') as m:
+    #     print(m)
 if __name__ == '__main__':
     main()
 
