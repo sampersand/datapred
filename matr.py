@@ -65,6 +65,10 @@ class matr(npmatr):
         if type is None and self.file != None:
             return self.__rshift__(self.file)
         return True
+
+    def __invert__(self):
+        pass
+
     def _npmatrfromfile(iterable, skipchar):
         mdata = []
         if __debug__:
@@ -93,7 +97,7 @@ class matr(npmatr):
 
 def main():
     with matr('testdata.txt') as m:
-        m['ant','legs'] = 8
+        print(~m)
 if __name__ == '__main__':
     main()
 

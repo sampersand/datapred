@@ -1,4 +1,4 @@
 name,legs,cute?,feeling
 dog,4,yes,:)
-ant,8,no,:(
+ant,6,no,:(
 human,2,depends,:|
