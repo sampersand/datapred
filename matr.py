@@ -6,19 +6,35 @@ except ImportError:
 
 class Matr:
 
-    class _RowClass(list):
-        def __new__(self, matr, iterable):
+    class _rowcl(list):
+        def __new__(self, matr, key, iterable):
             return super().__new__(self, iterable)
 
-        def __init__(self, matr, iterable):
+        def __init__(self, matr, key, iterable):
             super().__init__(iterable)
             self.matr = matr
+            self.key = key
 
         def __getitem__(self, val):
             if isinstance(val, slice):
                 assert 0
-            return super().__getitem__(\
-        self.matr.header.index(val) if isinstance(val, str) else val)
+            return super().__getitem__(self.matr.header.index(val) if isinstance(val, str) else val)
+        def __str__(self):
+            return str(self.key) + str(super())
+    class _keycl(tuple):
+
+        def __new__(self, matr, vals):
+            return super().__new__(self, vals)
+
+        @property
+        def id(self):
+            return self[0]
+
+        @property
+        def pos(self):
+            return self[1]
+        
+            
 
     def __init__(self,
                  file = None,
@@ -80,7 +96,8 @@ class Matr:
             if not hasIds:
                 line.insert(0, str(idn))
             if not line[0][0] == skipchar:
-                data[(idtype(line[0]), idn)] = Matr._RowClass(retmatr, [valtype(val) for val in line[1:]])
+                key = Matr._keycl(retmatr, (idtype(line[0]), idn))
+                data[key] = Matr._rowcl(retmatr, key, [valtype(val) for val in line[1:]])
             idn += 1
 
         if not hasheader:
@@ -123,11 +140,12 @@ class Matr:
             assert not isinstance(val, tuple) or len(val) == 2, \
             'val needs to be (row, col) or just row\n' + str(val)
         row, col = isinstance(val, tuple) and val or (val, slice(None))
-
-        for rowkey in self.data.keys():
-            if self.idtype(row) == rowkey[0] or useindexing and int(row) == rowkey[1]:
-                return self.data[rowkey]
-        return None
+        print(row,col)
+        print(self)
+        # for rowkey in self.data.keys():
+        #     if self.idtype(row) == rowkey.id or useindexing and int(row) == rowkey.pos:
+        #         return self.data[rowkey]
+        # return None
 
     # def __setitem__(self, val, toset):
     #     return super().__setitem__(self._transrowcol(*val if isinstance(val, tuple) else (val, slice(None))), toset)
@@ -179,8 +197,8 @@ def main():
     # with Matr('testdata.txt') as m:
         # print(m[0])
     m = 'testdata.txt' >> Matr()
-    # m.tofile()
-    print(m[0,:])
+    print(m[0])
+    # sm.tofile()
 if __name__ == '__main__':
     main()
 
