@@ -21,13 +21,13 @@ class Matr(list):
     def __getitem__(self, val):
         if not isinstance(val, tuple):
             ret = super().__getitem__(self.indrow(val))
-            if not isinstance(ret, Matr):
+            if type(ret) == list: #Matr is a list...
                 ret = Matr(data = ret)
-            ret.dtype = self.dtype
-            return ret
-        if __debug__:
-            assert len(val) == 2, 'cant have a getitem of length more than 2! ' + str(val)
-        ret = super().__getitem__(self.indrow(val[0])).__getitem__(self.indcol(val[1]))
+                ret.dtype = self.dtype
+        else:
+            if __debug__:
+                assert len(val) == 2, 'cant have a getitem of length more than 2! ' + str(val)
+            ret = super().__getitem__(self.indrow(val[0])).__getitem__(self.indcol(val[1]))
         return ret
 
     def indrow(self, row):
@@ -156,9 +156,10 @@ class Matr(list):
     @property
     def cols(self):
         ret = Matr(dtype = self.dtype)
-        # for row in range(len(self)):
-            # for col in range(len(self[0])):
-
+        for col in range(len(self[0])):
+            ret.append(Matr())
+            for row in range(len(self)):
+                ret[col].append(self[row,col])
         return ret
 
 
@@ -172,7 +173,7 @@ class Matr(list):
 
 def main():
     m = Matr() << 'testdata.txt'
-    print(type(m[0:]),m[0:])
+    print(m.cols)
     # with Matr('testdata.txt') as m:
     #     print(m)
 if __name__ == '__main__':
