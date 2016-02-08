@@ -57,11 +57,19 @@ class Matr(list):
     def __repr__(self):
         return "Matr(file={},data={},dtype={})".format(self.file, super().__repr__(), self.dtype)
 
-    # def __str__(self):
-    #     ret = "Matrix (file = '{}', dtype = '{}')".format(self.file, self.dtype)
-    #     maxl = [max([e for e in col]) for col in self.cols]
-    #     print(maxl)
-    #     return ret
+    def __str__(self):
+        ret = 'Matrix (file = \'{}\', dtype = \'{}\')\n\n'.format(self.file, self.dtype)
+        maxl = [max([len(str(e)) for e in col]) for col in self.cols]
+        reta = ''
+        for hdrp in range(len(self.headers)): #should be
+            ret += '{:^{}} | '.format(self.headers[hdrp], maxl[hdrp])
+            reta += '-' * (maxl[hdrp]) + '-+-'
+        ret = ret[:-3] + '\n' + reta[:-3] + '\n'
+        for row in self[1:]:
+            for colp in range(len(row)):
+                ret += '{:^{}} | '.format(row[colp], maxl[colp])
+            ret = ret[:-3] + '\n'
+        return ret + reta[:-3]
 
 
 
@@ -103,14 +111,14 @@ class Matr(list):
             file = fin.name
             fin = csv.reader(fin)
         else:
-            raise TypeError("No known way to read from file type '%s'." % type(fin))
+            raise TypeError('No known way to read from file type \'%s\'.' % type(fin))
         del io
 
         if __debug__:
-            assert hasattr(fin, '__iter__'), 'cannot iterate over type \'{}\'!'.format(type(fin))
+            assert hasattr(fin, '__iter__'), 'Cannot iterate over type \'{}\'!'.format(type(fin))
 
         data = []
-        dtypes = dtype if hasattr(dtype, "__getitem__") else [dtype] if dtype else [int, float, complex, str]
+        dtypes = dtype if hasattr(dtype, '__getitem__') else [dtype] if dtype else [int, float, complex, str]
         for line in fin:
             if not isinstance(line, list):
                 if __debug__:
@@ -126,7 +134,7 @@ class Matr(list):
                             break
                         except ValueError:
                             if dtypes[-1] == datatype:
-                                warn("no known way to coerce '{}' into {}!".format(val, dtypes))
+                                warn('No known way to coerce \'{}\' into {}!'.format(val, dtypes))
                                 data[-1].append(val)
         return Matr(file = file, data = data)
 
@@ -136,15 +144,15 @@ class Matr(list):
         if isinstance(fout, str):
             fout = csv.writer(open(fout, 'w'))
         if __debug__:
-            assert hasattr(fout, "writerow") or hasattr(fout, "write") or hasattr(fout, "writeline")
+            assert hasattr(fout, 'writerow') or hasattr(fout, 'write') or hasattr(fout, 'writeline')
         for row in self:
             row = [str(ele) for ele in row]
-            if hasattr(fout, "writerow"): #AKA, if it's a csv writer.
+            if hasattr(fout, 'writerow'): #AKA, if it's a csv writer.
                 fout.writerow(row)
-            elif hasattr(fout, "writeline"):
-                fout.write(",".join(row))
-            elif hasattr(fout, "write"):
-                fout.write(",".join(row) + '\n')
+            elif hasattr(fout, 'writeline'):
+                fout.write(','.join(row))
+            elif hasattr(fout, 'write'):
+                fout.write(','.join(row) + '\n')
             else:
                 return NotImplemented
         return self
@@ -173,7 +181,7 @@ class Matr(list):
 
 def main():
     m = Matr() << 'testdata.txt'
-    print(m.cols)
+    print(m)
     # with Matr('testdata.txt') as m:
     #     print(m)
 if __name__ == '__main__':
