@@ -86,14 +86,47 @@ class Matr(list):
             # reta.append(' | {:^{}}'.format(hdrs[linep], maxl[hdrp]))
             print(maxc[hdrp], max(len(e) for e in spl), spl)
             retbnd += '-+-{:->{}}'.format('', maxc[hdrp])
-        ret += '\n ' + retbnd[1:] + '+\n'
+
+        retbnd = '\n ' + retbnd[1:] + '-+\n'
         rethdr2 = ['' for i in range(len(rethdr))]
+
         for lin in range(len(rethdr)):
             for ele in range(len(rethdr[lin])):
                 rethdr2[lin] += ' | {:^{}}'.format(rethdr[lin][ele] or '', maxc[ele])
-        ret += '|\n'.join(rethdr2) + "|"
-        ret += '\n ' + retbnd[1:] + '+\n'
-        # maxl = [max([len(str(e)) for e in col]) for col in cp.cols]
+        ret += retbnd + ' |\n'.join(rethdr2) + ' |' + retbnd
+
+        ###
+
+        retdata = [[[] for i in range(maxr[rowp + 1])] for rowp in range(len(maxr[1:]))] #the data. maxr[0] is header
+        # retdata = [[[] for i in range(len(cp.headers))] for row in maxr[1:]] #the data. maxr[0] is header
+        for rowp in range(1, len(cp)): #row position
+            for colp in range(len(cp[rowp])): #col position
+                spl = str(cp[rowp, colp]).split('\n')
+                for colp2 in range(maxr[rowp]):
+                    retdata[rowp - 1][colp2].append(spl[colp2] if colp2 < len(spl) else None)
+        # for rowp in range(1, len(cp)):
+        #     for colp in range(len(cp[rowp])):
+        #         for colp2 in range(len(cp[rowp])): #they all shound be the same
+        #             spl = str(cp[rowp, colp2]).split('\n')
+        #         # for rowp2 in range(len(cp[rowp])): #they all shound be the same
+        #             for row2p in range(maxr[rowp]):
+        #                 print(spl,colp2,retdata)
+        #                 retdata[row2p].append(colp2 <= len(spl) - 1 and spl[row2p] or None)
+        retdata2 = [['' for i in range(len(row))] for row in retdata] 
+        print(retdata,'retdata')
+        print(retdata2,'retdata2')
+        for rowp in range(len(retdata)):
+            for colp in range(len(retdata[rowp])):
+                ele = retdata[rowp][colp]
+                print(ele)
+                for rowp2 in range(len(ele)):
+                    print(ele[rowp2],'ele','@@@@@@@@@@@@@@@@@@@@')
+                    # retdata2[rowp][colp] += ' | {:^{}}'.format(rowp2 or '', maxr[colp])
+                    print(rowp2,"|")
+                    retdata2[rowp][colp] += ' | {:^{}}'.format(\
+                            ele[rowp2] or '', maxc[rowp2])
+                    # retdata2[rowp][colp] += ' | {:^{}}'.format(ele[rowp2][colp2] if ele[rowp2] else 1 or '@', maxc[rowp2])
+        ret += ' |{}'.format(retbnd).join([' |\n'.join(row) for row in retdata2]) + ' |'
         # retb = ''
         # for hdrp in range(len(cp.headers)): #should be
         #     ret  += ' | {:^{}}'.format(len(cp.cols[hdrp]), maxl[hdrp])
@@ -106,13 +139,13 @@ class Matr(list):
         # for row in cp[1:]:
         #     ret += ' {:^3} | '.format(len(row))
         #     for colp in range(len(row)):
-        #         ret += '{:^{}} | '.format(str(row[colp]), maxl[colp][0])
+        #         ret += '{:^{}} | '.format(str(row[colp]), maxc[colp])
 
-        #     ret = ret + '%n'
-        # return ret + retb
+        #     ret = ret + '\n'
+        ret += retbnd
         return ret
     def __str__(self):
-        return self.tostr().replace('%n','\n')
+        return self.tostr()
 
 
     def __pos__(self):
