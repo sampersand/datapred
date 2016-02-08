@@ -58,18 +58,22 @@ class Matr(list):
         return "Matr(file={},data={},dtype={})".format(self.file, super().__repr__(), self.dtype)
 
     def __str__(self):
-        ret = 'Matrix (file = \'{}\', dtype = \'{}\')\n\n'.format(self.file, self.dtype)
+        ret = 'Matrix (file = \'{}\', dtype = \'{}\')\n\n len'.format(self.file, self.dtype)
         maxl = [max([len(str(e)) for e in col]) for col in self.cols]
         reta = ''
+        retb = ''
         for hdrp in range(len(self.headers)): #should be
-            ret += '{:^{}} | '.format(self.headers[hdrp], maxl[hdrp])
-            reta += '-' * (maxl[hdrp]) + '-+-'
-        ret = ret[:-3] + '\n' + reta[:-3] + '\n'
+            ret += ' | {:^{}}'.format(len(self.cols[hdrp]), maxl[hdrp])
+            reta += ' | {:^{}}'.format(self.headers[hdrp], maxl[hdrp])
+            retb += '-+-' + '-' * (maxl[hdrp])
+        retb = '-----' + retb[1:] + '-+'
+        ret = ret + ' |\n' + retb + '\n {:^3} '.format(len(self.headers)) + reta[1:] + ' |\n' + retb + '\n'
         for row in self[1:]:
+            ret += ' {:^3} | '.format(len(row))
             for colp in range(len(row)):
                 ret += '{:^{}} | '.format(row[colp], maxl[colp])
-            ret = ret[:-3] + '\n'
-        return ret + reta[:-3]
+            ret = ret + '\n'
+        return ret + retb
 
 
 
