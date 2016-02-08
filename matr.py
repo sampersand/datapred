@@ -61,13 +61,15 @@ class Matr(list):
     def __repr__(self):
         return "Matr(file={},data={})".format(repr(self.file), super().__repr__())
 
-    def tostr(self):
+    def __str__(self):
         cp = +self
-        ret = 'Matrix (file = \'{}\')%n'.format(cp.file)
+        ret = 'Matrix (file = \'{}\')\n'.format(cp.file)
         def getlen(e):
             ret = []
             for x in str(e).split('\n'):
                 ret.append(len(x))
+            return ret
+        if len(self) == 0:
             return ret
         maxc = []
         maxr = []
@@ -75,25 +77,22 @@ class Matr(list):
             maxc.append(max(e for lin in linlen for e in lin))
         for linlen in [[getlen(e) for e in row] for row in cp.rows]:
             maxr.append(max(len(lin) for lin in linlen))
-        retbnd = '' #the --+-- stuff
+        boundries = '' #the --+-- stuff
         rethdr = [[] for i in range(maxr[0])] #the header
         for hdrp in range(len(cp.headers)):
             spl = str(cp.cols[hdrp, 0]).split('\n')
             for rowp in range(maxr[0]):
                 rethdr[rowp].append(rowp <= len(spl) - 1 and spl[rowp] or None)
-            # rethdr  += ' | {:^{}}'.format(len(cp.cols[hdrp]), maxl[hdrp])
-            # hdrs = str(cp.headers[hdrp]).split('\n')
-            # reta.append(' | {:^{}}'.format(hdrs[linep], maxl[hdrp]))
-            print(maxc[hdrp], max(len(e) for e in spl), spl)
-            retbnd += '-+-{:->{}}'.format('', maxc[hdrp])
+            boundries += '-+-{:->{}}'.format('', maxc[hdrp])
 
-        retbnd = '\n ' + retbnd[1:] + '-+\n'
+        boundries = '\n ' + boundries[1:] + '-+\n'
+        boldboundries = boundries.replace('-','=').replace('+','*')
         rethdr2 = ['' for i in range(len(rethdr))]
 
         for lin in range(len(rethdr)):
             for ele in range(len(rethdr[lin])):
                 rethdr2[lin] += ' | {:^{}}'.format(rethdr[lin][ele] or '', maxc[ele])
-        ret += retbnd + ' |\n'.join(rethdr2) + ' |' + retbnd
+        ret += boldboundries + ' |\n'.join(rethdr2) + ' |' + boldboundries
 
         ###
 
@@ -113,20 +112,12 @@ class Matr(list):
         #                 print(spl,colp2,retdata)
         #                 retdata[row2p].append(colp2 <= len(spl) - 1 and spl[row2p] or None)
         retdata2 = [['' for i in range(len(row))] for row in retdata] 
-        print(retdata,'retdata')
-        print(retdata2,'retdata2')
         for rowp in range(len(retdata)):
             for colp in range(len(retdata[rowp])):
                 ele = retdata[rowp][colp]
-                print(ele)
                 for rowp2 in range(len(ele)):
-                    print(ele[rowp2],'ele','@@@@@@@@@@@@@@@@@@@@')
-                    # retdata2[rowp][colp] += ' | {:^{}}'.format(rowp2 or '', maxr[colp])
-                    print(rowp2,"|")
-                    retdata2[rowp][colp] += ' | {:^{}}'.format(\
-                            ele[rowp2] or '', maxc[rowp2])
-                    # retdata2[rowp][colp] += ' | {:^{}}'.format(ele[rowp2][colp2] if ele[rowp2] else 1 or '@', maxc[rowp2])
-        ret += ' |{}'.format(retbnd).join([' |\n'.join(row) for row in retdata2]) + ' |'
+                    retdata2[rowp][colp] += ' ! {:^{}}'.format(ele[rowp2] or '', maxc[rowp2])
+        ret += ' !{}'.format(boundries).join([' !\n'.join(row) for row in retdata2]) + ' !'
         # retb = ''
         # for hdrp in range(len(cp.headers)): #should be
         #     ret  += ' | {:^{}}'.format(len(cp.cols[hdrp]), maxl[hdrp])
@@ -135,17 +126,14 @@ class Matr(list):
         #     retb += '-+-' + '-' * (maxl[hdrp][0])
         # retb = '-----' + retb[1:] + '-+'
         # print(reta)
-        # ret = ret + ' |%n' + retb + '%n {:^3} '.format(len(cp.headers)) + reta[1:] + ' |%n' + retb + '%n'
+        # ret = ret + ' |\n' + retb + '\n {:^3} '.format(len(cp.headers)) + reta[1:] + ' |\n' + retb + '\n'
         # for row in cp[1:]:
         #     ret += ' {:^3} | '.format(len(row))
         #     for colp in range(len(row)):
         #         ret += '{:^{}} | '.format(str(row[colp]), maxc[colp])
 
         #     ret = ret + '\n'
-        ret += retbnd
-        return ret
-    def __str__(self):
-        return self.tostr()
+        return ret + boldboundries
 
 
     def __pos__(self):
@@ -279,7 +267,9 @@ class T:
         return "T()"
 
 def main():
+    print(Matr())
     with Matr('testdata.txt') as m:
+        print(repr(m))
         # m['id3',-1] = Matr(data=[[1]])
         print(m)
     # m = 'testdata.txt' >> Matr()
