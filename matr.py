@@ -56,26 +56,35 @@ class Matr(list):
 
     def __repr__(self):
         return "Matr(file={},data={},dtype={})".format(self.file, super().__repr__(), self.dtype)
-
     def __str__(self):
-        ret = 'Matrix (file = \'{}\', dtype = \'{}\')\n\n len'.format(self.file, self.dtype)
-        maxl = [max([len(str(e)) for e in col]) for col in self.cols]
+        cp = +self
+        ret = 'Matrix (file = \'{}\', dtype = \'{}\')\n\n len'.format(cp.file, cp.dtype)
+        maxl = [max([len(str(e)) for e in col]) for col in cp.cols]
         reta = ''
         retb = ''
-        for hdrp in range(len(self.headers)): #should be
-            ret += ' | {:^{}}'.format(len(self.cols[hdrp]), maxl[hdrp])
-            reta += ' | {:^{}}'.format(self.headers[hdrp], maxl[hdrp])
+        for hdrp in range(len(cp.headers)): #should be
+            ret += ' | {:^{}}'.format(len(cp.cols[hdrp]), maxl[hdrp])
+            reta += ' | {:^{}}'.format(cp.headers[hdrp], maxl[hdrp])
             retb += '-+-' + '-' * (maxl[hdrp])
         retb = '-----' + retb[1:] + '-+'
-        ret = ret + ' |\n' + retb + '\n {:^3} '.format(len(self.headers)) + reta[1:] + ' |\n' + retb + '\n'
-        for row in self[1:]:
+        ret = ret + ' |\n' + retb + '\n {:^3} '.format(len(cp.headers)) + reta[1:] + ' |\n' + retb + '\n'
+        for row in cp[1:]:
             ret += ' {:^3} | '.format(len(row))
             for colp in range(len(row)):
-                ret += '{:^{}} | '.format(row[colp], maxl[colp])
+                ret += '{:^{}} | '.format(str(row[colp]), maxl[colp])
             ret = ret + '\n'
         return ret + retb
 
 
+    def __pos__(self):
+        import copy
+        ret = copy.copy(self)
+        for row in self:
+            if __debug__:
+                assert len(row) <= len(self.headers), 'header needs to be larger or equal to all!'
+            for i in range(len(self.headers) - len(row)):
+                row.append(None)
+        return ret
 
     def __contains__(self, val):
         return val in self.ids or super().__contains__(val)
@@ -128,7 +137,9 @@ class Matr(list):
                 if __debug__:
                     assert isinstance(line, str)
                 line = line.split(splitchar)
-
+            if __debug__:
+                if len(line[0]) == 0:
+                    line[0] = 'None'
             if not line[0][0] == skipchar:
                 data.append(Matr())
                 for val in line:
@@ -168,12 +179,11 @@ class Matr(list):
     @property
     def cols(self):
         ret = Matr(dtype = self.dtype)
-        for col in range(len(self[0])):
+        for col in range(len(self.headers)):
             ret.append(Matr())
-            for row in range(len(self)):
+            for row in range(len(self.rows)):
                 ret[col].append(self[row,col])
         return ret
-
 
     @property
     def headers(self):
