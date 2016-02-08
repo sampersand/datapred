@@ -69,76 +69,59 @@ class Matr(list):
             for x in str(e).split('\n'):
                 ret.append(len(x))
             return ret
-        if len(self) == 0:
+        if len(cp) == 0:
             return ret
+
         maxc = []
         maxr = []
+
         for linlen in [[getlen(e) for e in col] for col in cp.cols]:
             maxc.append(max(e for lin in linlen for e in lin))
         for linlen in [[getlen(e) for e in row] for row in cp.rows]:
             maxr.append(max(len(lin) for lin in linlen))
+
         boundries = '' #the --+-- stuff
+
+        #header
         rethdr = [[] for i in range(maxr[0])] #the header
+
         for hdrp in range(len(cp.headers)):
             spl = str(cp.cols[hdrp, 0]).split('\n')
             for rowp in range(maxr[0]):
-                rethdr[rowp].append(rowp <= len(spl) - 1 and spl[rowp] or None)
+                rethdr[rowp].append(spl[rowp] if rowp < len(spl) else None)
             boundries += '-+-{:->{}}'.format('', maxc[hdrp])
 
         boundries = '\n ' + boundries[1:] + '-+\n'
         boldboundries = boundries.replace('-','=').replace('+','*')
+
         rethdr2 = ['' for i in range(len(rethdr))]
 
         for lin in range(len(rethdr)):
             for ele in range(len(rethdr[lin])):
-                rethdr2[lin] += ' | {:^{}}'.format(rethdr[lin][ele] or '', maxc[ele])
+                rethdr2[lin] += ' | {:^{}}'.format(rethdr[lin][ele] if rethdr[lin][ele] != None else '', maxc[ele])
         ret += boldboundries + ' |\n'.join(rethdr2) + ' |' + boldboundries
 
-        ###
-
+        #data
         retdata = [[[] for i in range(maxr[rowp + 1])] for rowp in range(len(maxr[1:]))] #the data. maxr[0] is header
-        # retdata = [[[] for i in range(len(cp.headers))] for row in maxr[1:]] #the data. maxr[0] is header
         for rowp in range(1, len(cp)): #row position
             for colp in range(len(cp[rowp])): #col position
                 spl = str(cp[rowp, colp]).split('\n')
                 for colp2 in range(maxr[rowp]):
-                    retdata[rowp - 1][colp2].append(spl[colp2] if colp2 < len(spl) else None)
-        # for rowp in range(1, len(cp)):
-        #     for colp in range(len(cp[rowp])):
-        #         for colp2 in range(len(cp[rowp])): #they all shound be the same
-        #             spl = str(cp[rowp, colp2]).split('\n')
-        #         # for rowp2 in range(len(cp[rowp])): #they all shound be the same
-        #             for row2p in range(maxr[rowp]):
-        #                 print(spl,colp2,retdata)
-        #                 retdata[row2p].append(colp2 <= len(spl) - 1 and spl[row2p] or None)
+                    retdata[rowp - 1][colp2].append((spl[colp2] if spl[colp2] != str(None) else None) if colp2 < len(spl) else None)
         retdata2 = [['' for i in range(len(row))] for row in retdata] 
         for rowp in range(len(retdata)):
             for colp in range(len(retdata[rowp])):
                 ele = retdata[rowp][colp]
                 for rowp2 in range(len(ele)):
-                    retdata2[rowp][colp] += ' ! {:^{}}'.format(ele[rowp2] or '', maxc[rowp2])
-        ret += ' !{}'.format(boundries).join([' !\n'.join(row) for row in retdata2]) + ' !'
-        # retb = ''
-        # for hdrp in range(len(cp.headers)): #should be
-        #     ret  += ' | {:^{}}'.format(len(cp.cols[hdrp]), maxl[hdrp])
-        #     hdrs = str(cp.headers[hdrp]).split('\n')
-        #     reta.append(' | {:^{}}'.format(hdrs[linep], maxl[hdrp]))
-        #     retb += '-+-' + '-' * (maxl[hdrp][0])
-        # retb = '-----' + retb[1:] + '-+'
-        # print(reta)
-        # ret = ret + ' |\n' + retb + '\n {:^3} '.format(len(cp.headers)) + reta[1:] + ' |\n' + retb + '\n'
-        # for row in cp[1:]:
-        #     ret += ' {:^3} | '.format(len(row))
-        #     for colp in range(len(row)):
-        #         ret += '{:^{}} | '.format(str(row[colp]), maxc[colp])
+                    retdata2[rowp][colp] += ' | {:^{}}'.format(ele[rowp2] if ele[rowp2] != None else '', maxc[rowp2])
+        ret += ' |{}'.format(boundries).join([' |\n'.join(row) for row in retdata2]) + ' |'
 
-        #     ret = ret + '\n'
         return ret + boldboundries
 
 
     def __pos__(self):
         import copy
-        ret = copy.copy(self)
+        ret = copy.deepcopy(self)
         for row in ret:
             if __debug__:
                 assert len(row) <= len(ret.headers), 'header needs to be larger or equal to all! ({},{})'.\
@@ -194,10 +177,9 @@ class Matr(list):
         data = []
         dtypes = dtype if hasattr(dtype, '__getitem__') else [dtype] if dtype else [int, float, complex, str]
         for line in fin:
-            if not isinstance(line, list):
-                if __debug__:
-                    assert isinstance(line, str)
-                assert 0, repr(ret)#line = line.split(splitchar)
+            if len(line) == 0:
+                data.append([])
+                continue
             if __debug__:
                 if len(line[0]) == 0:
                     line[0] = 'None'
@@ -226,7 +208,7 @@ class Matr(list):
         if __debug__:
             assert hasattr(fout, 'writerow') or hasattr(fout, 'write') or hasattr(fout, 'writeline')
         for row in self:
-            row = [repr(ele) for ele in row]
+            row = [repr(ele if ele != None else '') for ele in row]
             if hasattr(fout, 'writerow'): #AKA, if it's a csv writer.
                 fout.writerow(row)
             elif hasattr(fout, 'writeline'):
