@@ -146,40 +146,46 @@ class Matr(list):
         return True
 
 
-    def _dofunc(self, other, function):
+    def _dofunc(self, other, function, docopy = True):
         if not (hasattr(other, '__iter__') or hasattr(other, function)):
             return NotImplemented
-        ret = copy.deepcopy(self)
+        if docopy:
+            self = copy.deepcopy(self)
         if hasattr(other, '__iter__'):
             pass
         else:
-            for rowp in range(1,len(ret.rows)): #skip header
-                for colp in range(1, len(ret[rowp])): #skip id
+            for rowp in range(1,len(self.rows)): #skip header
+                for colp in range(1, len(self[rowp])): #skip id
                     try:
-                        attr = getattr(ret[rowp, colp],function)(other)
+                        ele = self[rowp, colp]
+                        typ = type(ele + other) #coersion
+                        if isinstance(typ, str) and not isinstance(ele, str):
+                            raise TypeError
+                        attr = getattr(typ(ele),function)(typ(other))
                         if attr == NotImplemented:
                             raise TypeError
-                        ret[rowp, colp] = attr
+                        self[rowp, colp] = attr
                     except (TypeError, AttributeError):
                         warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                             format(ret[rowp, colp], function, type(other)))
-        return ret
-
+                             format(self[rowp, colp], function, type(other)))
+        return self
     def __add__(self, other):  return self._dofunc(other, '__add__')
-    def __radd__(self, other): return self._dofunc(other, '__radd__')
-    def __iadd__(self, other): return self._dofunc(other, '__addi__')
+    def __iadd__(self, other): return self._dofunc(other, '__add__', False)
 
     def __sub__(self, other):  return self._dofunc(other, '__sub__')
-    def __rsub__(self, other): return self._dofunc(other, '__rsub__')
-    def __isub__(self, other): return self._dofunc(other, '__subi__')
+    def __isub__(self, other): return self._dofunc(other, '__sub__', False)
 
     def __div__(self, other):  return self._dofunc(other, '__div__')
-    def __rdiv__(self, other): return self._dofunc(other, '__rdiv__')
-    def __idiv__(self, other): return self._dofunc(other, '__divi__')
+    def __idiv__(self, other): return self._dofunc(other, '__div__', False)
 
     def __mul__(self, other):  return self._dofunc(other, '__mul__')
-    def __rmul__(self, other): return self._dofunc(other, '__rmul__')
-    def __imul__(self, other): return self._dofunc(other, '__muli__')
+    def __imul__(self, other): return self._dofunc(other, '__mul__', False)
+
+    def __floordiv__(self, other):  return self._dofunc(other, '__floordiv__')
+    def __ifloordiv__(self, other): return self._dofunc(other, '__floordiv__', False)
+
+    def __pow__(self, other):  return self._dofunc(other, '__pow__')
+    def __ipow__(self, other): return self._dofunc(other, '__pow__', False)
 
     def __lshift__(self, fout):
         """ self << fin :: Sets self to the Matrix read from the input file"""
@@ -287,13 +293,11 @@ class Matr(list):
 
 def main():
     m1 = 'testdata.txt' >> Matr()
-    # m1['id2', 'h2']['1','h3'] = Matr(data=[[1,2]])
+    m1['id2', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
     m2 = 'testdata2.txt' >> Matr()
-    # print(m1)
+    print(m1)
     # print(m2)
-    m1 += 100
-    m1 *= 1/100
-    print(str(100 + m1))
+    # m1 **=3
 if __name__ == '__main__':
     main()
 
