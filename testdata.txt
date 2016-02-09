@@ -3,34 +3,3 @@ id1,1,2,3
 id2,4,5,6
 id3,7,8,9
 id4,4,"Matr(file=None,data=[['name', 'H1', 'H2', 'H3', 'H4'], ['id1', Matr(file=None,data=[[1, 2], [3, 4]]), 2, 3], ['id2', 4, 5, 6, 7], ['id3', 'SAM', 'is', '1337', 'h4x0r']])", 6
-# class C:
-#     def __init__(self, v):
-#         print('__init__<', v, '>')
-#         self.v = v
-#
-#     def __str__(self):
-#         return 'C.v = ' + str(self.v)
-#
-#     def __sub__(self, b):
-#         print('__sub__[', b, ']')
-#         return C(self.v - b.v)
-#
-#     def __getattr__(self, attr):
-#         print('__getattr__{', attr, '}')
-#         return super().__getattr__(attr)
-#
-#     def __getattribute__(self, attribute):
-#         print('__getattribute__(', attribute, ')')
-#         return super().__getattribute__(attribute)
-#
-# c1 = C(9)
-# c2 = C(4)
-#
-# c3 = c1.__sub__(c2) # this calls '__getattribute__'
-#
-# c4 = c1 - c2 # this calls neither '__getattr__' nor '__getattribute__', but succeeds because '__sub__' is defined.
-#              # Why doesn't it call either?
-#
-# c5 = c1 + c2 # this calls neither '__getattr__' nor '__getattribute__', but fails because '__add__' isn't defined.
-#              # Why doesn't it call either?
-# c1.a # this calls '__getattribute__', and then goes to '__getattr__'

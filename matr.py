@@ -83,9 +83,9 @@ class Matr(list):
         maxc = []
         maxr = []
 
-        for linlen in [[getlen(e) for e in col] for col in cp.cols]:
+        for linlen in [[getlen(e) for e in col] for col in cp.T]:
             maxc.append(max(e for lin in linlen for e in lin))
-        for linlen in [[getlen(e) for e in row] for row in cp.rows]:
+        for linlen in [[getlen(e) for e in row] for row in cp]:
             maxr.append(max(len(lin) for lin in linlen))
 
         boundries = '' #the --+-- stuff
@@ -94,7 +94,7 @@ class Matr(list):
         rethdr = [[] for i in range(maxr[0])] #the header
 
         for hdrp in range(len(cp.headers)):
-            spl = str(cp.cols[hdrp, 0]).split('\n')
+            spl = str(cp.T[hdrp, 0]).split('\n')
             for rowp in range(maxr[0]):
                 rethdr[rowp].append(spl[rowp] if rowp < len(spl) else None)
             boundries += '-+-{:->{}}'.format('', maxc[hdrp])
@@ -158,7 +158,7 @@ class Matr(list):
             self = copy.deepcopy(self)
         if axis:
             colp = 0
-            while colp < len(self.cols):
+            while colp < len(self.T):
                 if [1 for row in self if row[colp] == None]:
                     for row in self: del row[colp]
                     colp -= 1
@@ -175,11 +175,6 @@ class Matr(list):
     def __contains__(self, val):
         """ checks if val is an id, or if super().__contains__(val) is true """
         return val in self.ids or super().__contains__(val)
-
-    def __reversed__(self):
-        """ [ n , h1, h2, h3   --> [h3, h2, h1, n
-              i1,  a,  b,  c ]       c,  b,  a, i1 ] """
-        return Matr(file = self.file, data = [[e for e in reversed(r)] for r in self])
 
     def __enter__(self):
         """ just returns self"""
@@ -256,28 +251,20 @@ class Matr(list):
 
     def __add__(self, other):       return self.applyFunc(other, '__add__')
     def __iadd__(self, other):      return self.applyFunc(other, '__add__', False)
-
     def __sub__(self, other):       return self.applyFunc(other, '__sub__')
     def __isub__(self, other):      return self.applyFunc(other, '__sub__', False)
-
     def __div__(self, other):       return self.applyFunc(other, '__div__')
     def __idiv__(self, other):      return self.applyFunc(other, '__div__', False)
-
-    def __mul__(self, other):       return self.applyFunc(other, '__mul__')
-    def __imul__(self, other):      return self.applyFunc(other, '__mul__', False)
-
+    # def __mul__(self, other):       return self.applyFunc(other, '__mul__')
+    # def __imul__(self, other):      return self.applyFunc(other, '__mul__', False)
     def __floordiv__(self, other):  return self.applyFunc(other, '__floordiv__')
     def __ifloordiv__(self, other): return self.applyFunc(other, '__floordiv__', False)
-
     def __pow__(self, other):       return self.applyFunc(other, '__pow__')
     def __ipow__(self, other):      return self.applyFunc(other, '__pow__', False)
-
     def __or__(self, other):        return self.applyFunc(other, '__or__')
     def __ior__(self, other):       return self.applyFunc(other, '__or__', False)
-
     def __and__(self, other):       return self.applyFunc(other, '__and__')
     def __iand__(self, other):      return self.applyFunc(other, '__and__', False)
-
     def __xor__(self, other):       return self.applyFunc(other, '__xor__')
     def __ixor__(self, other):      return self.applyFunc(other, '__xor__', False)
 
@@ -368,20 +355,6 @@ class Matr(list):
         return self
 
     @property
-    def rows(self):
-        """ is just self"""
-        return self
-    @property
-    def cols(self):
-        self = +self
-        ret = Matr()
-        for col in range(len(self.headers)):
-            ret.append(Matr())
-            for row in range(len(self.rows)):
-                ret[col].append(self[row,col])
-        return ret
-
-    @property
     def headers(self):
         """ headers of the columns"""
         return self[0]
@@ -397,12 +370,23 @@ class Matr(list):
         [ a, b, c  -> [ a b
           d, e, f ]     d e 
                         c f ]"""
-        # ret = Matr(data =  __xor__)
-        return 1
+        self = +self
+        ret = Matr()
+        for col in range(len(self.headers)):
+            ret.append(Matr())
+            for row in range(len(self)):
+                ret[col].append(self[row,col])
+        return ret
+    
+    def __reversed__(self):
+        """ returns self.Mx"""
+        return self.Mx
+
     @property
     def Mx(self):
-        """ Mirrior over X axis """
-        return reversed(self)
+        """ [ n , h1, h2, h3   --> [h3, h2, h1, n
+              i1,  a,  b,  c ]      c,  b,  a,  i1 ] """
+        return Matr(file = self.file, data = [[e for e in reversed(list(r))] for r in self])
     @property
     def My(self):
         """ Mirrior over Y axis """
@@ -421,12 +405,12 @@ class Matr(list):
 def main():
     m1 = 'testdata.txt' >> Matr()
     m2 = 'testdata2.txt' >> Matr()
-    print(m1,end='\n')
+    m3 = Matr.fromfile(open('testdata3.txt'), splitchar = ';', strip = False)
+    print(m3.T.Mxy.T,end='\n')
     # print(m3.powerset.plainstr)
     # m3[0,0] = eval('999,999')
     # print(m3, -m3, +m3, m3.strip(1), reversed(m3), sep='\n\n')
 
-    m3 = Matr.fromfile(open('testdata3.txt'), splitchar = '', strip = False)
     # import pickle
     # help(pickle)
     # pickle.dump(m3, open('testdata4.txt', 'w'))
