@@ -419,12 +419,17 @@ class Matr(list):
         return Matr(data = f([f(r) for r in self]))
 
 def main():
-    # m1 = 'testdata.txt' >> Matr()
-    # m2 = 'testdata2.txt' >> Matr()
-    m3 = Matr.fromfile(open('testdata3.txt'), splitchar = '', strip = False)
-    print(m3.powerset.plainstr)
+    m1 = 'testdata.txt' >> Matr()
+    m2 = 'testdata2.txt' >> Matr()
+    print(m1,end='\n')
+    # print(m3.powerset.plainstr)
     # m3[0,0] = eval('999,999')
     # print(m3, -m3, +m3, m3.strip(1), reversed(m3), sep='\n\n')
+
+    m3 = Matr.fromfile(open('testdata3.txt'), splitchar = '', strip = False)
+    # import pickle
+    # help(pickle)
+    # pickle.dump(m3, open('testdata4.txt', 'w'))
 
 if __name__ == '__main__':
     main()
@@ -435,3 +440,4 @@ if __name__ == '__main__':
 
 
 
+    
