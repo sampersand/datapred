@@ -1,4 +1,5 @@
 from warnings import warn
+import copy
 try:
     import csv
 except ImportError:
@@ -8,7 +9,6 @@ class Matr(list):
 
     def __new__(self, file = None, data = []):
         return super().__new__(self, data)
-
     def __init__(self, file = None, data = []):
         if file and not data:
             super().__init__(Matr.fromfile(file))
@@ -19,8 +19,6 @@ class Matr(list):
     def __getitem__(self, pos):
         if not isinstance(pos, tuple):
             ret = super().__getitem__(self.indrow(pos))
-            # if type(ret) == list: #Matr is a list...
-            #     ret = Matr(data = ret)
         else:
             if __debug__:
                 assert len(pos) == 2, 'cant have a getitem of length more than 2! ' + str(pos)
@@ -44,8 +42,8 @@ class Matr(list):
         for i in range(len(self.rows)):
             if row == self[i,0]:
                 return i
+        warn(str(row) + ' is not in the list of valid ids! ' + repr(self.ids))
         return row
-
     def indcol(self, col):
         if isinstance(col, slice):
             return slice(self.indcol(col.start),\
@@ -56,14 +54,15 @@ class Matr(list):
         for i in range(len(self.cols)):
             if col == self[0, i]:
                 return i
+        warn(str(col) + ' is not in the list of valid headers! ' + repr(self.headers))
         return col
 
     def __repr__(self):
+        """ """
         return "Matr(file={},data={})".format(repr(self.file), super().__repr__())
-
     def __str__(self):
         cp = +self
-        ret = 'Matrix (file = \'{}\')\n'.format(cp.file)
+        ret = 'Matrix (file = \'{}\')'.format(cp.file)
         def getlen(e):
             ret = []
             for x in str(e).split('\n'):
@@ -107,8 +106,11 @@ class Matr(list):
             for colp in range(len(cp[rowp])): #col position
                 spl = str(cp[rowp, colp]).split('\n')
                 for colp2 in range(maxr[rowp]):
-                    retdata[rowp - 1][colp2].append((spl[colp2] if spl[colp2] != str(None) else None) if colp2 < len(spl) else None)
+                    retdata[rowp - 1][colp2].append((spl[colp2] if spl[colp2] != str(None) else None)\
+                        if colp2 < len(spl) else None)
+
         retdata2 = [['' for i in range(len(row))] for row in retdata] 
+
         for rowp in range(len(retdata)):
             for colp in range(len(retdata[rowp])):
                 ele = retdata[rowp][colp]
@@ -118,12 +120,11 @@ class Matr(list):
 
         return ret + boldboundries
 
-
     def __pos__(self):
-        import copy
         ret = copy.deepcopy(self)
         for row in ret:
             if __debug__:
+                assert hasattr(row, '__iter__'), repr(row) + " | " + repr(ret)
                 assert len(row) <= len(ret.headers), 'header needs to be larger or equal to all! ({},{})'.\
                     format(row, ret.headers)
             for i in range(len(ret.headers) - len(row)):
@@ -131,11 +132,12 @@ class Matr(list):
         return ret
 
     def __contains__(self, val):
+        """ checks if val is an id, or if super().__contains__(val) is true """
         return val in self.ids or super().__contains__(val)
 
     def __enter__(self):
+        """ just returns self"""
         return self
-
     def __exit__(self, type, value, traceback):
         if type != None:
             raise
@@ -143,22 +145,41 @@ class Matr(list):
             self >> self.file
         return True
 
+
+    def _dofunc(self, other, function):
+        if not (hasattr(other, '__iter__') or hasattr(other, function)):
+            return NotImplemented
+        ret = copy.deepcopy(self)
+        if hasattr(other, '__iter__'):
+            pass
+        else:
+            for rowp in range(1,len(ret.rows)): #skip header
+                for colp in range(len(ret[rowp])): #skip id
+                    try:
+                        ret[rowp, colp] = getattr(ret[rowp, colp],function)(other)
+                    except TypeError:
+                        warn("skipping element '{}' because there is no known way to apply '{}' on it and '{}'".format(\
+                             ret[rowp, colp], function, other))
+        return ret
+
+    def __add__(self, other):
+        return self._dofunc(other, '__add__')
+
     def __lshift__(self, fout):
+        """ self << fin :: Sets self to the Matrix read from the input file"""
         return self.__rrshift__(fout)
-
     def __rlshift__(self, fout):
+        """ fout >> self :: writes self to fout, """
         return self.__rshift__(fout)
-
     def __rrshift__(self, fin):
         """ fin >> self :: Sets self to the Matrix read from the input file"""
         return self.fromfile(fin)
-
     def __rshift__(self, fout):
         """ self >> fout :: writes self to fout, """
         return self.tofile(fout)
 
     @staticmethod
-    def fromfile(fin, dtype = None, skipchar = '#', splitchar = ','):
+    def fromfile(fin, dtype = None, hasIds = True, skipchar = '#', splitchar = ','):
         """ splitchar is only when no csv """
         import io
         if isinstance(fin, str):
@@ -176,6 +197,8 @@ class Matr(list):
 
         data = []
         dtypes = dtype if hasattr(dtype, '__getitem__') else [dtype] if dtype else [int, float, complex, str]
+        if not hasIds:
+            idpos = 0
         for line in fin:
             if len(line) == 0:
                 data.append([])
@@ -184,8 +207,12 @@ class Matr(list):
                 if len(line[0]) == 0:
                     line[0] = 'None'
             if not line[0][0] == skipchar:
-                data.append(Matr())
+                data.append([]) #could be Matr(), but i thought bad idea
+                if not hasIds:
+                    data[-1].append('id' + str(idpos))
+                    idpos+=1
                 for val in line:
+                    val = val.strip()
                     for datatype in dtypes:
                         try:
                             data[-1].append(None if val == '' else eval(val)) #eval isn't the best idea, lol
@@ -199,7 +226,6 @@ class Matr(list):
                                     warn('No known way to coerce \'{}\' into {}!'.format(val, dtypes))
                                     data[-1].append(val)
         return Matr(file = file, data = data)
-
     def tofile(self, fout = None):
         if fout == None:
             fout = self.file
@@ -221,6 +247,7 @@ class Matr(list):
 
     @property
     def rows(self):
+        """ is just self"""
         return self
 
     @property
@@ -234,30 +261,21 @@ class Matr(list):
 
     @property
     def headers(self):
+        """ headers of the columns"""
         return self[0]
 
     @property
     def ids(self):
-        return [row[0] for row in self][1:]
-
-class T:
-    def __init__(self):
-        pass
-    def __str__(self):
-        return '1ab\n2cd\nef23'
-    def __repr__(self):
-        return "T()"
+        """ identifiers of rows"""
+        return [row[0] for row in self][1:] #0 is names
 
 def main():
-    print(Matr())
-    with Matr('testdata.txt') as m:
-        print(repr(m))
-        # m['id3',-1] = Matr(data=[[1]])
-        print(m)
-    # m = 'testdata.txt' >> Matr()
-    # print(repr(m))
-    # m['id3', -1] = 99
-    # m >> 'testdata.txt'
+    m1 = 'testdata.txt' >> Matr()
+    # m1['id2', 'h2']['1','h3'] = Matr(data=[[1,2]])
+    m2 = 'testdata2.txt' >> Matr()
+    # print(m1)
+    # print(m2)
+    print(str(m1 + 100))
 if __name__ == '__main__':
     main()
 
