@@ -7,10 +7,10 @@ except ImportError:
 
 class Matr(list):
 
-    def __new__(self, file = None, data = []):
+    def __new__(self, data = [], file = None):
         """ because if extending list, it needs __new__"""
         return super().__new__(self, data)
-    def __init__(self, file = None, data = []):
+    def __init__(self, data = [], file = None):
         if file and not data:
             super().__init__(Matr.fromfile(file))
         else:
@@ -128,7 +128,12 @@ class Matr(list):
         ret += ' |{}'.format(boundries).join([' |\n'.join(row) for row in retdata2]) + ' |'
 
         return ret + boldboundries[:-1]
-
+    
+    @property
+    def plainstr(self):
+        """ just the elements"""
+        return str([a.plainstr if hasattr(a, 'plainstr') else a for a in self])
+    
     def __pos__(self):
         """ fill empty slots with None """
         ret = copy.deepcopy(self)
@@ -186,6 +191,9 @@ class Matr(list):
             self >> self.file
         return True
 
+    def __hash__(self):
+        return hash(str(hash(self.file) + sum(sum(hash(str(e)) for e in r) for r in self)))
+
     def applyFunc(self, other, function, docopy = True, recursive = True):
         if not (hasattr(other, '__iter__') or hasattr(other, function)):
             return NotImplemented
@@ -210,10 +218,10 @@ class Matr(list):
                                 if sele == None:
                                     self[orow[0], other.headers[colp]] = oele
                                 continue
-                            if isinstance(ele, Matr) and recursive:
-                                typ = Matr
-                            else:
-                                typ = type(ele + other) #coersion                            # typ = type(sele + oele) #coersion
+                            # if isinstance(oele, Matr) and recursive:
+                                # typ = Matr
+                            # else:
+                            typ = type(sele + oele) #coersion                            # typ = type(sele + oele) #coersion
                             if isinstance(typ, str) and not isinstance(sele, str):
                                 raise TypeError
                             attr = getattr(typ(sele),function)(typ(oele))
@@ -231,10 +239,10 @@ class Matr(list):
                 for colp in range(1, len(self[rowp])): #skip id
                     try:
                         ele = self[rowp, colp]
-                        if isinstance(ele, Matr) and recursive:
-                            typ = Matr
-                        else:
-                            typ = type(ele + other) #coersion
+                        # if isinstance(ele, Matr) and recursive:
+                        #     typ = Matr
+                        # else:
+                        typ = type(ele + other) #coersion
                         if isinstance(typ, str) and not isinstance(ele, str):
                             raise TypeError
                         attr = getattr(typ(ele),function)(typ(other))
@@ -287,7 +295,7 @@ class Matr(list):
         return self.tofile(fout)
 
     @staticmethod
-    def fromfile(fin, dtype = None, hasIds = True, skipchar = '#', splitchar = ','):
+    def fromfile(fin, dtype = None, hasIds = True, skipchar = '#', splitchar = ',', strip = True):
         """ splitchar is only when no csv """
         import io
         if isinstance(fin, str):
@@ -308,6 +316,11 @@ class Matr(list):
         if not hasIds:
             idpos = 0
         for line in fin:
+            if splitchar != ',':
+                if not splitchar:
+                    line = [x for x in ''.join(line)]
+                else:
+                    line = [x for x in ''.join(line).split(splitchar)]
             if len(line) == 0:
                 data.append([])
                 continue
@@ -320,12 +333,13 @@ class Matr(list):
                     data[-1].append('id' + str(idpos))
                     idpos+=1
                 for val in line:
-                    val = val.strip()
+                    if strip:
+                        val = val.strip()
                     for datatype in dtypes:
                         try:
                             data[-1].append(None if val == '' else eval(val)) #eval isn't the best idea, lol
                             break
-                        except NameError:
+                        except (NameError,SyntaxError):
                             try:
                                 data[-1].append(datatype(val))
                                 break
@@ -375,27 +389,41 @@ class Matr(list):
     def ids(self):
         """ identifiers of rows"""
         return [row[0] for row in self]
-    
+
     @property
-    def Tx(self):
-        """ Transpose of X axis """
+    def T(self):
+        """ Transpose (invert flip x and y)
+        --- 
+        [ a, b, c  -> [ a b
+          d, e, f ]     d e 
+                        c f ]"""
+        # ret = Matr(data =  __xor__)
+        return 1
+    @property
+    def Mx(self):
+        """ Mirrior over X axis """
         return reversed(self)
     @property
-    def Ty(self):
-        """ Transpose of Y axis """
+    def My(self):
+        """ Mirrior over Y axis """
         return Matr(file = self.file, data = super().__reversed__())
     @property
-    def Txy(self):
-        """ Transpose of Y axis """
-        return self.Tx.Ty
+    def Mxy(self):
+        """ Mirrior over Y axis """
+        return self.Mx.My
+
+    @property
+    def powerset(self, ignoreorder = True):
+        """ just for fun """
+        f = lambda l : [[y for j, y in enumerate(l) if i >> j & 1] for i in range(2 << len(l) - ignoreorder)]
+        return Matr(data = f([f(r) for r in self]))
 
 def main():
-    m1 = Matr.fromfile(open('testdata.txt'))
     # m1 = 'testdata.txt' >> Matr()
-    m2 = 'testdata2.txt' >> Matr()
-    print(m2.Tx,sep='\n\n')
-    # m3 = m1 + m2
-    # print(m1 + 100)
+    # m2 = 'testdata2.txt' >> Matr()
+    m3 = Matr.fromfile(open('testdata3.txt'), splitchar = '', strip = False)
+    print(m3.powerset.plainstr)
+    # m3[0,0] = eval('999,999')
     # print(m3, -m3, +m3, m3.strip(1), reversed(m3), sep='\n\n')
 
 if __name__ == '__main__':
