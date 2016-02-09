@@ -172,6 +172,8 @@ class Matr(list):
         return val in self.ids or super().__contains__(val)
 
     def __reversed__(self):
+        """ [ n , h1, h2, h3   --> [h3, h2, h1, n
+              i1,  a,  b,  c ]       c,  b,  a, i1 ] """
         return Matr(file = self.file, data = [[e for e in reversed(r)] for r in self])
 
     def __enter__(self):
@@ -184,7 +186,7 @@ class Matr(list):
             self >> self.file
         return True
 
-    def applyFunc(self, other, function, docopy = True):
+    def applyFunc(self, other, function, docopy = True, recursive = True):
         if not (hasattr(other, '__iter__') or hasattr(other, function)):
             return NotImplemented
         if docopy:
@@ -208,7 +210,10 @@ class Matr(list):
                                 if sele == None:
                                     self[orow[0], other.headers[colp]] = oele
                                 continue
-                            typ = type(sele + oele) #coersion
+                            if isinstance(ele, Matr) and recursive:
+                                typ = Matr
+                            else:
+                                typ = type(ele + other) #coersion                            # typ = type(sele + oele) #coersion
                             if isinstance(typ, str) and not isinstance(sele, str):
                                 raise TypeError
                             attr = getattr(typ(sele),function)(typ(oele))
@@ -226,7 +231,10 @@ class Matr(list):
                 for colp in range(1, len(self[rowp])): #skip id
                     try:
                         ele = self[rowp, colp]
-                        typ = type(ele + other) #coersion
+                        if isinstance(ele, Matr) and recursive:
+                            typ = Matr
+                        else:
+                            typ = type(ele + other) #coersion
                         if isinstance(typ, str) and not isinstance(ele, str):
                             raise TypeError
                         attr = getattr(typ(ele),function)(typ(other))
@@ -367,15 +375,29 @@ class Matr(list):
     def ids(self):
         """ identifiers of rows"""
         return [row[0] for row in self]
+    
+    @property
+    def Tx(self):
+        """ Transpose of X axis """
+        return reversed(self)
+    @property
+    def Ty(self):
+        """ Transpose of Y axis """
+        return Matr(file = self.file, data = super().__reversed__())
+    @property
+    def Txy(self):
+        """ Transpose of Y axis """
+        return self.Tx.Ty
 
 def main():
-    m1 = 'testdata.txt' >> Matr()
+    m1 = Matr.fromfile(open('testdata.txt'))
+    # m1 = 'testdata.txt' >> Matr()
     m2 = 'testdata2.txt' >> Matr()
-    m3 = m1 + m2
-    print(reversed(m3))
-    # print(m3, -m3, reversed(m3), sep='\n\n')
+    print(m2.Tx,sep='\n\n')
+    # m3 = m1 + m2
+    # print(m1 + 100)
+    # print(m3, -m3, +m3, m3.strip(1), reversed(m3), sep='\n\n')
 
-    # m1['id1a', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
 if __name__ == '__main__':
     main()
 
