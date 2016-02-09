@@ -42,8 +42,9 @@ class Matr(list):
         for i in range(len(self.rows)):
             if row == self[i,0]:
                 return i
-        warn(str(row) + ' is not in the list of valid ids! ' + repr(self.ids))
-        return row
+        if row == None:
+            return row
+        raise IndexError(str(row) + ' is not in the list of valid ids! ' + repr(self.ids))
     def indcol(self, col):
         if isinstance(col, slice):
             return slice(self.indcol(col.start),\
@@ -54,8 +55,9 @@ class Matr(list):
         for i in range(len(self.cols)):
             if col == self[0, i]:
                 return i
-        warn(str(col) + ' is not in the list of valid headers! ' + repr(self.headers))
-        return col
+        if row == None:
+            return row
+        raise IndexError(str(col) + ' is not in the list of valid headers! ' + repr(self.headers))
 
     def __repr__(self):
         """ """
@@ -118,7 +120,7 @@ class Matr(list):
                     retdata2[rowp][colp] += ' | {:^{}}'.format(ele[rowp2] if ele[rowp2] != None else '', maxc[rowp2])
         ret += ' |{}'.format(boundries).join([' |\n'.join(row) for row in retdata2]) + ' |'
 
-        return ret + boldboundries
+        return ret + boldboundries[:-1]
 
     def __pos__(self):
         ret = copy.deepcopy(self)
@@ -152,7 +154,32 @@ class Matr(list):
         if docopy:
             self = copy.deepcopy(self)
         if hasattr(other, '__iter__'):
-            pass
+            if __debug__:
+                assert isinstance(other, Matr), "currently, type {} isn't supported for function '{}'".\
+                    format(type(other), function)
+            for header in other.headers:
+                if header not in self.headers:
+                    self.headers.append(header)
+            for orow in other.rows[1:]:
+                if orow[0] in self:
+                    for colp in range(1, len(orow[1:])):
+                        try:
+                            sele = self[orow[0], self.headers.index(other.headers[colp])]
+                            oele = orow[colp]
+                            typ = type(sele + oele) #coersion
+                            if isinstance(typ, str) and not isinstance(sele, str):
+                                raise TypeError
+                            attr = getattr(typ(sele),function)(typ(oele))
+                            if attr == NotImplemented:
+                                raise TypeError
+                            self[orow[0], self.headers.index(other.headers[colp])] = attr
+                        except (TypeError, AttributeError):
+                            warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
+                                 format(self[orow[0], other.header[elep]], function, type(other)))
+
+                else:
+                    self.append(orow)
+
         else:
             for rowp in range(1,len(self.rows)): #skip header
                 for colp in range(1, len(self[rowp])): #skip id
@@ -293,11 +320,9 @@ class Matr(list):
 
 def main():
     m1 = 'testdata.txt' >> Matr()
-    m1['id2', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
+    # m1['id1a', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
     m2 = 'testdata2.txt' >> Matr()
-    print(m1)
-    # print(m2)
-    # m1 **=3
+    print(m1 + m2)
 if __name__ == '__main__':
     main()
 
