@@ -154,16 +154,32 @@ class Matr(list):
             pass
         else:
             for rowp in range(1,len(ret.rows)): #skip header
-                for colp in range(len(ret[rowp])): #skip id
+                for colp in range(1, len(ret[rowp])): #skip id
                     try:
-                        ret[rowp, colp] = getattr(ret[rowp, colp],function)(other)
-                    except TypeError:
-                        warn("skipping element '{}' because there is no known way to apply '{}' on it and '{}'".format(\
-                             ret[rowp, colp], function, other))
+                        attr = getattr(ret[rowp, colp],function)(other)
+                        if attr == NotImplemented:
+                            raise TypeError
+                        ret[rowp, colp] = attr
+                    except (TypeError, AttributeError):
+                        warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
+                             format(ret[rowp, colp], function, type(other)))
         return ret
 
-    def __add__(self, other):
-        return self._dofunc(other, '__add__')
+    def __add__(self, other):  return self._dofunc(other, '__add__')
+    def __radd__(self, other): return self._dofunc(other, '__radd__')
+    def __iadd__(self, other): return self._dofunc(other, '__addi__')
+
+    def __sub__(self, other):  return self._dofunc(other, '__sub__')
+    def __rsub__(self, other): return self._dofunc(other, '__rsub__')
+    def __isub__(self, other): return self._dofunc(other, '__subi__')
+
+    def __div__(self, other):  return self._dofunc(other, '__div__')
+    def __rdiv__(self, other): return self._dofunc(other, '__rdiv__')
+    def __idiv__(self, other): return self._dofunc(other, '__divi__')
+
+    def __mul__(self, other):  return self._dofunc(other, '__mul__')
+    def __rmul__(self, other): return self._dofunc(other, '__rmul__')
+    def __imul__(self, other): return self._dofunc(other, '__muli__')
 
     def __lshift__(self, fout):
         """ self << fin :: Sets self to the Matrix read from the input file"""
@@ -275,7 +291,9 @@ def main():
     m2 = 'testdata2.txt' >> Matr()
     # print(m1)
     # print(m2)
-    print(str(m1 + 100))
+    m1 += 100
+    m1 *= 1/100
+    print(str(100 + m1))
 if __name__ == '__main__':
     main()
 
