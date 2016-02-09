@@ -49,9 +49,6 @@ class Matr(list):
             return row
         if row in self.ids:
             return self.ids.index(row)
-        # for i in range(len(self.rows)):
-        #     if row == self[i,0]:
-        #         return i
         if row == None:
             return row
         raise IndexError(str(row) + ' is not in the list of valid ids! ' + repr(self.ids))
@@ -64,9 +61,6 @@ class Matr(list):
             return col
         if col in self.headers:
             return self.headers.index(col)
-        # for i in range(len(self.cols)):
-        #     if col == self[0, i]:
-        #         return i
         if col == None:
             return col
         raise IndexError(str(col) + ' is not in the list of valid headers! ' + repr(self.headers))
@@ -88,7 +82,7 @@ class Matr(list):
         maxc = []
         maxr = []
 
-        for linlen in [[getlen(e) for e in col] for col in cp.cols]:
+        for linlen in [[getlen(e) for e in col] for col in ~cp]:
             maxc.append(max(e for lin in linlen for e in lin))
         for linlen in [[getlen(e) for e in row] for row in cp.rows]:
             maxr.append(max(len(lin) for lin in linlen))
@@ -99,7 +93,7 @@ class Matr(list):
         rethdr = [[] for i in range(maxr[0])] #the header
 
         for hdrp in range(len(cp.headers)):
-            spl = str(cp.cols[hdrp, 0]).split('\n')
+            spl = str((~cp)[hdrp, 0]).split('\n')
             for rowp in range(maxr[0]):
                 rethdr[rowp].append(spl[rowp] if rowp < len(spl) else None)
             boundries += '-+-{:->{}}'.format('', maxc[hdrp])
@@ -145,9 +139,9 @@ class Matr(list):
                 row.append(None)
         return ret
     def __neg__(self):
-        return self.removeNone()
+        return self.strip()
     def __invert__(self):
-        return self.removeNone(axis = 1)
+        return self.cols
     def __contains__(self, val):
         """ checks if val is an id, or if super().__contains__(val) is true """
         return val in self.ids or super().__contains__(val)
@@ -162,13 +156,13 @@ class Matr(list):
             self >> self.file
         return True
 
-    def removeNone(self, axis = 0, docopy = True): #axis does nothing atm
+    def strip(self, axis = 0, docopy = True): #axis does nothing atm
         self = +self
         if docopy:
             self = copy.deepcopy(self)
         if axis:
             colp = 0
-            while colp < len(self.cols):
+            while colp < len(~self):
                 if [1 for row in self if row[colp] == None]:
                     for row in self: del row[colp]
                     colp -= 1
