@@ -24,6 +24,14 @@ class Matr(list):
                 assert len(pos) == 2, 'cant have a getitem of length more than 2! ' + str(pos)
             ret = super().__getitem__(self.indrow(pos[0])).__getitem__(self.indcol(pos[1]))
         return ret
+    def __delitem__(self, pos):
+        if not isinstance(pos, tuple):
+            ret = super().__delitem__(self.indrow(pos))
+        else:
+            if __debug__:
+                assert len(pos) == 2, 'cant have a getitem of length more than 2! ' + str(pos)
+            ret = super().__getitem__(self.indrow(pos[0])).__delitem__(self.indcol(pos[1]))
+        return ret
     def __setitem__(self, pos, val):
         if not isinstance(pos, tuple):
             super().__setitem__(self.indrow(pos), val)
@@ -39,9 +47,11 @@ class Matr(list):
                          self.indrow(row.step))
         if isinstance(row, int):
             return row
-        for i in range(len(self.rows)):
-            if row == self[i,0]:
-                return i
+        if row in self.ids:
+            return self.ids.index(row)
+        # for i in range(len(self.rows)):
+        #     if row == self[i,0]:
+        #         return i
         if row == None:
             return row
         raise IndexError(str(row) + ' is not in the list of valid ids! ' + repr(self.ids))
@@ -52,11 +62,13 @@ class Matr(list):
                          self.indcol(col.step))
         if isinstance(col, int):
             return col
-        for i in range(len(self.cols)):
-            if col == self[0, i]:
-                return i
-        if row == None:
-            return row
+        if col in self.headers:
+            return self.headers.index(col)
+        # for i in range(len(self.cols)):
+        #     if col == self[0, i]:
+        #         return i
+        if col == None:
+            return col
         raise IndexError(str(col) + ' is not in the list of valid headers! ' + repr(self.headers))
 
     def __repr__(self):
@@ -132,7 +144,10 @@ class Matr(list):
             for i in range(len(ret.headers) - len(row)):
                 row.append(None)
         return ret
-
+    def __neg__(self):
+        return self.removeNone()
+    def __invert__(self):
+        return self.removeNone(axis = 1)
     def __contains__(self, val):
         """ checks if val is an id, or if super().__contains__(val) is true """
         return val in self.ids or super().__contains__(val)
@@ -147,8 +162,26 @@ class Matr(list):
             self >> self.file
         return True
 
-
-    def _dofunc(self, other, function, docopy = True):
+    def removeNone(self, axis = 0, docopy = True): #axis does nothing atm
+        self = +self
+        if docopy:
+            self = copy.deepcopy(self)
+        if axis:
+            colp = 0
+            while colp < len(self.cols):
+                if [1 for row in self if row[colp] == None]:
+                    for row in self: del row[colp]
+                    colp -= 1
+                colp += 1
+        else:
+            rowp = 0
+            while rowp < len(self.rows):
+                if len(self[rowp]) < len(self.headers):
+                    del self[rowp]
+                    rowp-=1
+                rowp+=1
+        return self
+    def applyFunc(self, other, function, docopy = True):
         if not (hasattr(other, '__iter__') or hasattr(other, function)):
             return NotImplemented
         if docopy:
@@ -162,24 +195,29 @@ class Matr(list):
                     self.headers.append(header)
             for orow in other.rows[1:]:
                 if orow[0] in self:
-                    for colp in range(1, len(orow[1:])):
+                    for colp in range(1, len(orow)):
                         try:
-                            sele = self[orow[0], self.headers.index(other.headers[colp])]
+                            socol = self.indcol(other.headers[colp]) #self other col
+                            self[orow[0]] = [self[orow[0], i] if i < len(self[orow[0]]) else None for i in range(len(self.headers))]
+                            sele = self[orow[0], other.headers[colp]]
                             oele = orow[colp]
+                            if sele == None or oele == None:
+                                if sele == None:
+                                    self[orow[0], other.headers[colp]] = oele
+                                continue
                             typ = type(sele + oele) #coersion
                             if isinstance(typ, str) and not isinstance(sele, str):
                                 raise TypeError
                             attr = getattr(typ(sele),function)(typ(oele))
                             if attr == NotImplemented:
                                 raise TypeError
-                            self[orow[0], self.headers.index(other.headers[colp])] = attr
+                            self[orow[0], other.headers[colp]] = attr
                         except (TypeError, AttributeError):
                             warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                                 format(self[orow[0], other.header[elep]], function, type(other)))
+                                 format(self[orow[0], other.headers[colp]], function, type(other)))
 
                 else:
                     self.append(orow)
-
         else:
             for rowp in range(1,len(self.rows)): #skip header
                 for colp in range(1, len(self[rowp])): #skip id
@@ -196,23 +234,32 @@ class Matr(list):
                         warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
                              format(self[rowp, colp], function, type(other)))
         return self
-    def __add__(self, other):  return self._dofunc(other, '__add__')
-    def __iadd__(self, other): return self._dofunc(other, '__add__', False)
+    def __add__(self, other):  return self.applyFunc(other, '__add__')
+    def __iadd__(self, other): return self.applyFunc(other, '__add__', False)
 
-    def __sub__(self, other):  return self._dofunc(other, '__sub__')
-    def __isub__(self, other): return self._dofunc(other, '__sub__', False)
+    def __sub__(self, other):  return self.applyFunc(other, '__sub__')
+    def __isub__(self, other): return self.applyFunc(other, '__sub__', False)
 
-    def __div__(self, other):  return self._dofunc(other, '__div__')
-    def __idiv__(self, other): return self._dofunc(other, '__div__', False)
+    def __div__(self, other):  return self.applyFunc(other, '__div__')
+    def __idiv__(self, other): return self.applyFunc(other, '__div__', False)
 
-    def __mul__(self, other):  return self._dofunc(other, '__mul__')
-    def __imul__(self, other): return self._dofunc(other, '__mul__', False)
+    def __mul__(self, other):  return self.applyFunc(other, '__mul__')
+    def __imul__(self, other): return self.applyFunc(other, '__mul__', False)
 
-    def __floordiv__(self, other):  return self._dofunc(other, '__floordiv__')
-    def __ifloordiv__(self, other): return self._dofunc(other, '__floordiv__', False)
+    def __floordiv__(self, other):  return self.applyFunc(other, '__floordiv__')
+    def __ifloordiv__(self, other): return self.applyFunc(other, '__floordiv__', False)
 
-    def __pow__(self, other):  return self._dofunc(other, '__pow__')
-    def __ipow__(self, other): return self._dofunc(other, '__pow__', False)
+    def __pow__(self, other):  return self.applyFunc(other, '__pow__')
+    def __ipow__(self, other): return self.applyFunc(other, '__pow__', False)
+
+    def __or__(self, other):  return self.applyFunc(other, '__or__')
+    def __ior__(self, other): return self.applyFunc(other, '__or__', False)
+
+    def __and__(self, other):  return self.applyFunc(other, '__and__')
+    def __iand__(self, other): return self.applyFunc(other, '__and__', False)
+
+    def __xor__(self, other):  return self.applyFunc(other, '__xor__')
+    def __ixor__(self, other): return self.applyFunc(other, '__xor__', False)
 
     def __lshift__(self, fout):
         """ self << fin :: Sets self to the Matrix read from the input file"""
@@ -301,6 +348,7 @@ class Matr(list):
 
     @property
     def cols(self):
+        self = +self
         ret = Matr()
         for col in range(len(self.headers)):
             ret.append(Matr())
@@ -316,13 +364,15 @@ class Matr(list):
     @property
     def ids(self):
         """ identifiers of rows"""
-        return [row[0] for row in self][1:] #0 is names
+        return [row[0] for row in self]
 
 def main():
     m1 = 'testdata.txt' >> Matr()
-    # m1['id1a', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
     m2 = 'testdata2.txt' >> Matr()
-    print(m1 + m2)
+    m3 = m1 + m2
+    print(m3, ~m3, sep='\n')
+
+    # m1['id1a', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
 if __name__ == '__main__':
     main()
 
