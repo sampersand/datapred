@@ -8,6 +8,7 @@ except ImportError:
 class Matr(list):
 
     def __new__(self, file = None, data = []):
+        """ because if extending list, it needs __new__"""
         return super().__new__(self, data)
     def __init__(self, file = None, data = []):
         if file and not data:
@@ -23,7 +24,7 @@ class Matr(list):
             if __debug__:
                 assert len(pos) == 2, 'cant have a getitem of length more than 2! ' + str(pos)
             ret = super().__getitem__(self.indrow(pos[0])).__getitem__(self.indcol(pos[1]))
-        return ret
+        return ret      
     def __delitem__(self, pos):
         if not isinstance(pos, tuple):
             ret = super().__delitem__(self.indrow(pos))
@@ -82,7 +83,7 @@ class Matr(list):
         maxc = []
         maxr = []
 
-        for linlen in [[getlen(e) for e in col] for col in ~cp]:
+        for linlen in [[getlen(e) for e in col] for col in cp.cols]:
             maxc.append(max(e for lin in linlen for e in lin))
         for linlen in [[getlen(e) for e in row] for row in cp.rows]:
             maxr.append(max(len(lin) for lin in linlen))
@@ -93,7 +94,7 @@ class Matr(list):
         rethdr = [[] for i in range(maxr[0])] #the header
 
         for hdrp in range(len(cp.headers)):
-            spl = str((~cp)[hdrp, 0]).split('\n')
+            spl = str(cp.cols[hdrp, 0]).split('\n')
             for rowp in range(maxr[0]):
                 rethdr[rowp].append(spl[rowp] if rowp < len(spl) else None)
             boundries += '-+-{:->{}}'.format('', maxc[hdrp])
@@ -129,6 +130,7 @@ class Matr(list):
         return ret + boldboundries[:-1]
 
     def __pos__(self):
+        """ fill empty slots with None """
         ret = copy.deepcopy(self)
         for row in ret:
             if __debug__:
@@ -139,12 +141,38 @@ class Matr(list):
                 row.append(None)
         return ret
     def __neg__(self):
+        """ strips rows with None values in them """
         return self.strip()
     def __invert__(self):
-        return self.cols
+        """ strips cols with None values in them """
+        return self.strip(axis = 1)
+
+    def strip(self, axis = 0, docopy = True):
+        self = +self
+        if docopy:
+            self = copy.deepcopy(self)
+        if axis:
+            colp = 0
+            while colp < len(self.cols):
+                if [1 for row in self if row[colp] == None]:
+                    for row in self: del row[colp]
+                    colp -= 1
+                colp += 1
+        else:
+            rowp = 0
+            while rowp < len(self.rows):
+                if [1 for col in self[rowp] if col == None]:
+                    del self[rowp]
+                    rowp -= 1
+                rowp += 1
+        return self
+
     def __contains__(self, val):
         """ checks if val is an id, or if super().__contains__(val) is true """
         return val in self.ids or super().__contains__(val)
+
+    def __reversed__(self):
+        return Matr(file = self.file, data = [[e for e in reversed(r)] for r in self])
 
     def __enter__(self):
         """ just returns self"""
@@ -156,25 +184,6 @@ class Matr(list):
             self >> self.file
         return True
 
-    def strip(self, axis = 0, docopy = True): #axis does nothing atm
-        self = +self
-        if docopy:
-            self = copy.deepcopy(self)
-        if axis:
-            colp = 0
-            while colp < len(~self):
-                if [1 for row in self if row[colp] == None]:
-                    for row in self: del row[colp]
-                    colp -= 1
-                colp += 1
-        else:
-            rowp = 0
-            while rowp < len(self.rows):
-                if len(self[rowp]) < len(self.headers):
-                    del self[rowp]
-                    rowp-=1
-                rowp+=1
-        return self
     def applyFunc(self, other, function, docopy = True):
         if not (hasattr(other, '__iter__') or hasattr(other, function)):
             return NotImplemented
@@ -228,32 +237,33 @@ class Matr(list):
                         warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
                              format(self[rowp, colp], function, type(other)))
         return self
-    def __add__(self, other):  return self.applyFunc(other, '__add__')
-    def __iadd__(self, other): return self.applyFunc(other, '__add__', False)
 
-    def __sub__(self, other):  return self.applyFunc(other, '__sub__')
-    def __isub__(self, other): return self.applyFunc(other, '__sub__', False)
+    def __add__(self, other):       return self.applyFunc(other, '__add__')
+    def __iadd__(self, other):      return self.applyFunc(other, '__add__', False)
 
-    def __div__(self, other):  return self.applyFunc(other, '__div__')
-    def __idiv__(self, other): return self.applyFunc(other, '__div__', False)
+    def __sub__(self, other):       return self.applyFunc(other, '__sub__')
+    def __isub__(self, other):      return self.applyFunc(other, '__sub__', False)
 
-    def __mul__(self, other):  return self.applyFunc(other, '__mul__')
-    def __imul__(self, other): return self.applyFunc(other, '__mul__', False)
+    def __div__(self, other):       return self.applyFunc(other, '__div__')
+    def __idiv__(self, other):      return self.applyFunc(other, '__div__', False)
+
+    def __mul__(self, other):       return self.applyFunc(other, '__mul__')
+    def __imul__(self, other):      return self.applyFunc(other, '__mul__', False)
 
     def __floordiv__(self, other):  return self.applyFunc(other, '__floordiv__')
     def __ifloordiv__(self, other): return self.applyFunc(other, '__floordiv__', False)
 
-    def __pow__(self, other):  return self.applyFunc(other, '__pow__')
-    def __ipow__(self, other): return self.applyFunc(other, '__pow__', False)
+    def __pow__(self, other):       return self.applyFunc(other, '__pow__')
+    def __ipow__(self, other):      return self.applyFunc(other, '__pow__', False)
 
-    def __or__(self, other):  return self.applyFunc(other, '__or__')
-    def __ior__(self, other): return self.applyFunc(other, '__or__', False)
+    def __or__(self, other):        return self.applyFunc(other, '__or__')
+    def __ior__(self, other):       return self.applyFunc(other, '__or__', False)
 
-    def __and__(self, other):  return self.applyFunc(other, '__and__')
-    def __iand__(self, other): return self.applyFunc(other, '__and__', False)
+    def __and__(self, other):       return self.applyFunc(other, '__and__')
+    def __iand__(self, other):      return self.applyFunc(other, '__and__', False)
 
-    def __xor__(self, other):  return self.applyFunc(other, '__xor__')
-    def __ixor__(self, other): return self.applyFunc(other, '__xor__', False)
+    def __xor__(self, other):       return self.applyFunc(other, '__xor__')
+    def __ixor__(self, other):      return self.applyFunc(other, '__xor__', False)
 
     def __lshift__(self, fout):
         """ self << fin :: Sets self to the Matrix read from the input file"""
@@ -339,7 +349,6 @@ class Matr(list):
     def rows(self):
         """ is just self"""
         return self
-
     @property
     def cols(self):
         self = +self
@@ -354,7 +363,6 @@ class Matr(list):
     def headers(self):
         """ headers of the columns"""
         return self[0]
-
     @property
     def ids(self):
         """ identifiers of rows"""
@@ -364,7 +372,8 @@ def main():
     m1 = 'testdata.txt' >> Matr()
     m2 = 'testdata2.txt' >> Matr()
     m3 = m1 + m2
-    print(m3, ~m3, sep='\n')
+    print(reversed(m3))
+    # print(m3, -m3, reversed(m3), sep='\n\n')
 
     # m1['id1a', 'h2'][1,-3] = Matr(data=[[1,2],[3,4]])
 if __name__ == '__main__':
