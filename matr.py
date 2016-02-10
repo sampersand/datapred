@@ -23,6 +23,10 @@ class Matr(list):
         else:
             if __debug__:
                 assert len(pos) == 2, 'cant have a getitem of length more than 2! ' + str(pos)
+                assert self.indrow(pos[0]) <= len(self), str(pos[0]) + " | " + str(self)
+                a = super().__getitem__(self.indrow(pos[0]))
+                assert hasattr(a, '__len__') and len(a) >= self.indcol(pos[1]), str(a) + \
+                        " | " + str(self.indcol(pos[1])) + " | " + repr(self)
             ret = super().__getitem__(self.indrow(pos[0])).__getitem__(self.indcol(pos[1]))
         return ret      
     def __delitem__(self, pos):
@@ -43,9 +47,7 @@ class Matr(list):
 
     def indrow(self, row):
         if isinstance(row, slice):
-            return slice(self.indrow(row.start),\
-                         self.indrow(row.stop),\
-                         self.indrow(row.step))
+            return slice(self.indrow(row.start), self.indrow(row.stop), self.indrow(row.step))
         if isinstance(row, int):
             return row
         if row in self.ids:
@@ -53,11 +55,10 @@ class Matr(list):
         if row == None:
             return row
         raise IndexError(str(row) + ' is not in the list of valid ids! ' + repr(self.ids))
+
     def indcol(self, col):
         if isinstance(col, slice):
-            return slice(self.indcol(col.start),\
-                         self.indcol(col.stop),\
-                         self.indcol(col.step))
+            return slice(self.indcol(col.start), self.indcol(col.stop), self.indcol(col.step))
         if isinstance(col, int):
             return col
         if col in self.header:
@@ -192,18 +193,20 @@ class Matr(list):
     def applyScalarFunc(self, other, func, recursive = True): #in place
         if __debug__:
             assert not hasattr(other, '__iter__') #shoulda been checked earlier
-        for rowp in range(1, len(self)): #skip header
-            for colp in range(1, len(self[rowp])): #skip id
+        for row in self.ids[1:]: #skip header
+        # for row in range(1, len(self)): #skip header
+            for col in self.header[1:]: #skip id
+            # for col in range(1, len(self[row])): #skip id
                 try:
-                    if not recursive and isinstance(self[rowp, colp], Matr):
+                    if not recursive and isinstance(self[row, col], Matr):
                         continue #if recursive is false, then don't apply to sub matrixes
-                    self[rowp, colp] = getattr(self[rowp, colp],func)(other)
+                    self[row, col] = getattr(self[row, col],func)(other)
                 except (TypeError, AttributeError):
-                    warn("Ignoring '{0}' because '{0}.{1}({2})' isn't defined!".format(self[rowp, colp], func, other))
+                    warn("Ignoring '{0}' because '{0}.{1}({2})' isn't defined!".format(self[row, col], func, other))
         return self
-    def applyMaterFunc(self, other, func, docopy = True, recursive = True):
+    def applyMaterFunc(self, other, func, recursive = True):
         if __debug__:
-            assert hasattr(other, '__iter__') #shoulda been checked earlier
+            assert hasattr(other, '__iter__'), other #shoulda been checked earlier
             assert len(set(self.header)) == len(self.header), "Cannot have duplicate hcols for self!"
             assert len(set(other.header)) == len(other.header), "Cannot have duplicate hcols for other!"
         for hcol in other.header:
@@ -214,7 +217,7 @@ class Matr(list):
                 self.append(other[oid])
             else:
                 for hcol in self.header[1:]: #first one is id, so skip it (don't wanna add to it lol)
-                    if len(self[oid]) < self.header.index(hcol) + 1:
+                    if len(self[oid]) < len(self.header):
                         self[oid].append(None)
                     if hcol in other.header:
                         if self[oid, hcol] == None:
@@ -223,6 +226,11 @@ class Matr(list):
                         #somehow, other[oid, other.header.index(hcol)] is skipped
                         if not recursive and isinstance(self[oid, hcol], Matr):
                             continue #if recursive is false, then don't apply to sub matrixes
+                        elif isinstance(self[oid, hcol], Matr):
+                            self[oid, hcol] =\
+                                (self[oid, hcol].applyMaterFunc if hasattr(other[oid, other.header.index(hcol)], \
+                                '__iter__') else \
+                                self[oid, hcol].applyScalarFunc)(other[oid, other.header.index(hcol)], func)
                         if not hasattr(self[oid, hcol], func):
                             warn("Ignoring {} because '{}' isn't defined for it".format(self[oid, hcol], func))
                             continue
