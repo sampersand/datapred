@@ -189,78 +189,17 @@ class Matr(list):
     def __hash__(self):
         return hash(str(hash(self.file) + sum(sum(hash(str(e)) for e in r) for r in self)))
 
-    def applyFuncOLD(self, other, func, docopy = True, recursive = True):
-        if not (hasattr(other, '__iter__') or hasattr(other, func)):
-            return NotImplemented
-        if docopy:
-            self = copy.deepcopy(self)
-        if hasattr(other, '__iter__'):
-            if __debug__:
-                assert isinstance(other, Matr), "currently, type {} isn't supported for func '{}'".\
-                    format(type(other), func)
-            for hcol in other.header:
-                if hcol not in self.header:
-                    self.header.append(hcol)
-            for orow in other.rows[1:]:
-                if orow[0] in self:
-                    for colp in range(1, len(orow)):
-                        try:
-                            socol = self.indcol(other.header[colp]) #self other col
-                            self[orow[0]] = [self[orow[0], i] if i < len(self[orow[0]]) else None for i in range(len(self.header))]
-                            sele = self[orow[0], other.header[colp]]
-                            oele = orow[colp]
-                            if sele == None or oele == None:
-                                if sele == None:
-                                    self[orow[0], other.header[colp]] = oele
-                                continue
-                            # if isinstance(oele, Matr) and recursive:
-                                # typ = Matr
-                            # else:
-                            typ = type(sele + oele) #coersion                            # typ = type(sele + oele) #coersion
-                            if isinstance(typ, str) and not isinstance(sele, str):
-                                raise TypeError
-                            attr = getattr(typ(sele),func)(typ(oele))
-                            if attr == NotImplemented:
-                                raise TypeError
-                            self[orow[0], other.header[colp]] = attr
-                        except (TypeError, AttributeError):
-                            warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                                 format(self[orow[0], other.header[colp]], func, type(other)))
-
-                else:
-                    self.append(orow)
-        else:
-            for rowp in range(1,len(self.rows)): #skip header
-                for colp in range(1, len(self[rowp])): #skip id
-                    try:
-                        ele = self[rowp, colp]
-                        # if isinstance(ele, Matr) and recursive:
-                        #     typ = Matr
-                        # else:
-                        typ = type(ele + other) #coersion
-                        if isinstance(typ, str) and not isinstance(ele, str):
-                            raise TypeError
-                        attr = getattr(typ(ele),func)(typ(other))
-                        if attr == NotImplemented:
-                            raise TypeError
-                        self[rowp, colp] = attr
-                    except (TypeError, AttributeError):
-                        warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                             format(self[rowp, colp], func, type(other)))
-        return self
     def applyScalarFunc(self, other, func, recursive = True): #in place
         if __debug__:
             assert not hasattr(other, '__iter__') #shoulda been checked earlier
         for rowp in range(1, len(self)): #skip header
             for colp in range(1, len(self[rowp])): #skip id
                 try:
-                    attr = getattr(self[rowp, colp],func)(other)
-                    if attr == NotImplemented:
-                        raise TypeError
-                    self[rowp, colp] = attr
+                    if not recursive and isinstance(self[rowp, colp], Matr):
+                        continue #if recursive is false, then don't apply to sub matrixes
+                    self[rowp, colp] = getattr(self[rowp, colp],func)(other)
                 except (TypeError, AttributeError):
-                    warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                         format(self[rowp, colp], func, type(other)))
+                    warn("Ignoring '{0}' because '{0}.{1}({2})' isn't defined!".format(self[rowp, colp], func, other))
         return self
     def applyMaterFunc(self, other, func, docopy = True, recursive = True):
         if __debug__:
@@ -285,7 +224,7 @@ class Matr(list):
                         if not recursive and isinstance(self[oid, hcol], Matr):
                             continue #if recursive is false, then don't apply to sub matrixes
                         if not hasattr(self[oid, hcol], func):
-                            warn("Ignoring {} because '{}' defined for it".format(self[oid, hcol], func))
+                            warn("Ignoring {} because '{}' isn't defined for it".format(self[oid, hcol], func))
                             continue
 
                         #purposefully ignoring the NotImplemented case
