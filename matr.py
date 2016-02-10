@@ -60,11 +60,11 @@ class Matr(list):
                          self.indcol(col.step))
         if isinstance(col, int):
             return col
-        if col in self.headers:
-            return self.headers.index(col)
+        if col in self.header:
+            return self.header.index(col)
         if col == None:
             return col
-        raise IndexError(str(col) + ' is not in the list of valid headers! ' + repr(self.headers))
+        raise IndexError(str(col) + ' is not in the list of valid header! ' + repr(self.header))
 
     def __repr__(self):
         """ """
@@ -93,7 +93,7 @@ class Matr(list):
         #header
         rethdr = [[] for i in range(maxr[0])] #the header
 
-        for hdrp in range(len(cp.headers)):
+        for hdrp in range(len(cp.header)):
             spl = str(cp.T[hdrp, 0]).split('\n')
             for rowp in range(maxr[0]):
                 rethdr[rowp].append(spl[rowp] if rowp < len(spl) else None)
@@ -140,9 +140,9 @@ class Matr(list):
         for row in ret:
             if __debug__:
                 assert hasattr(row, '__iter__'), repr(row) + " | " + repr(ret)
-                assert len(row) <= len(ret.headers), 'header needs to be larger or equal to all! ({},{})'.\
-                    format(row, ret.headers)
-            for i in range(len(ret.headers) - len(row)):
+                assert len(row) <= len(ret.header), 'header needs to be larger or equal to all! ({},{})'.\
+                    format(row, ret.header)
+            for i in range(len(ret.header) - len(row)):
                 row.append(None)
         return ret
     def __neg__(self):
@@ -189,29 +189,29 @@ class Matr(list):
     def __hash__(self):
         return hash(str(hash(self.file) + sum(sum(hash(str(e)) for e in r) for r in self)))
 
-    def applyFunc(self, other, function, docopy = True, recursive = True):
-        if not (hasattr(other, '__iter__') or hasattr(other, function)):
+    def applyFuncOLD(self, other, func, docopy = True, recursive = True):
+        if not (hasattr(other, '__iter__') or hasattr(other, func)):
             return NotImplemented
         if docopy:
             self = copy.deepcopy(self)
         if hasattr(other, '__iter__'):
             if __debug__:
-                assert isinstance(other, Matr), "currently, type {} isn't supported for function '{}'".\
-                    format(type(other), function)
-            for header in other.headers:
-                if header not in self.headers:
-                    self.headers.append(header)
+                assert isinstance(other, Matr), "currently, type {} isn't supported for func '{}'".\
+                    format(type(other), func)
+            for hcol in other.header:
+                if hcol not in self.header:
+                    self.header.append(hcol)
             for orow in other.rows[1:]:
                 if orow[0] in self:
                     for colp in range(1, len(orow)):
                         try:
-                            socol = self.indcol(other.headers[colp]) #self other col
-                            self[orow[0]] = [self[orow[0], i] if i < len(self[orow[0]]) else None for i in range(len(self.headers))]
-                            sele = self[orow[0], other.headers[colp]]
+                            socol = self.indcol(other.header[colp]) #self other col
+                            self[orow[0]] = [self[orow[0], i] if i < len(self[orow[0]]) else None for i in range(len(self.header))]
+                            sele = self[orow[0], other.header[colp]]
                             oele = orow[colp]
                             if sele == None or oele == None:
                                 if sele == None:
-                                    self[orow[0], other.headers[colp]] = oele
+                                    self[orow[0], other.header[colp]] = oele
                                 continue
                             # if isinstance(oele, Matr) and recursive:
                                 # typ = Matr
@@ -219,13 +219,13 @@ class Matr(list):
                             typ = type(sele + oele) #coersion                            # typ = type(sele + oele) #coersion
                             if isinstance(typ, str) and not isinstance(sele, str):
                                 raise TypeError
-                            attr = getattr(typ(sele),function)(typ(oele))
+                            attr = getattr(typ(sele),func)(typ(oele))
                             if attr == NotImplemented:
                                 raise TypeError
-                            self[orow[0], other.headers[colp]] = attr
+                            self[orow[0], other.header[colp]] = attr
                         except (TypeError, AttributeError):
                             warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                                 format(self[orow[0], other.headers[colp]], function, type(other)))
+                                 format(self[orow[0], other.header[colp]], func, type(other)))
 
                 else:
                     self.append(orow)
@@ -240,33 +240,92 @@ class Matr(list):
                         typ = type(ele + other) #coersion
                         if isinstance(typ, str) and not isinstance(ele, str):
                             raise TypeError
-                        attr = getattr(typ(ele),function)(typ(other))
+                        attr = getattr(typ(ele),func)(typ(other))
                         if attr == NotImplemented:
                             raise TypeError
                         self[rowp, colp] = attr
                     except (TypeError, AttributeError):
                         warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
-                             format(self[rowp, colp], function, type(other)))
+                             format(self[rowp, colp], func, type(other)))
+        return self
+    def applyScalarFunc(self, other, func, recursive = True): #in place
+        if __debug__:
+            assert not hasattr(other, '__iter__') #shoulda been checked earlier
+        for rowp in range(1, len(self)): #skip header
+            for colp in range(1, len(self[rowp])): #skip id
+                try:
+                    attr = getattr(self[rowp, colp],func)(other)
+                    if attr == NotImplemented:
+                        raise TypeError
+                    self[rowp, colp] = attr
+                except (TypeError, AttributeError):
+                    warn("skipping element '{}' because there is no known way to apply '{}' on it and type '{}'".\
+                         format(self[rowp, colp], func, type(other)))
+        return self
+    def applyMaterFunc(self, other, func, docopy = True, recursive = True):
+        if __debug__:
+            assert hasattr(other, '__iter__') #shoulda been checked earlier
+            assert len(set(self.header)) == len(self.header), "Cannot have duplicate hcols for self!"
+            assert len(set(other.header)) == len(other.header), "Cannot have duplicate hcols for other!"
+        for hcol in other.header:
+            if hcol not in self.header:
+                self.header.append(hcol)
+        for oid in other.ids[1:]: #skips 'ID' part of header. not sure if that's necessary
+            if oid not in self: #if the other row isn't in this one, add it
+                self.append(other[oid])
+            else:
+                for hcol in self.header[1:]: #first one is id, so skip it (don't wanna add to it lol)
+                    if len(self[oid]) < self.header.index(hcol) + 1:
+                        self[oid].append(None)
+                    if hcol in other.header:
+                        if self[oid, hcol] == None:
+                            self[oid, hcol] = other[oid, other.header.index(hcol)]
+                            continue
+                        #somehow, other[oid, other.header.index(hcol)] is skipped
+                        if not recursive and isinstance(self[oid, hcol], Matr):
+                            continue #if recursive is false, then don't apply to sub matrixes
+                        if not hasattr(self[oid, hcol], func):
+                            warn("Ignoring {} because '{}' defined for it".format(self[oid, hcol], func))
+                            continue
+
+                        #purposefully ignoring the NotImplemented case
+                        self[oid, hcol] = getattr(self[oid, hcol], func)(other[oid, other.header.index(hcol)])
         return self
 
-    def __add__(self, other):       return self.applyFunc(other, '__add__')
-    def __iadd__(self, other):      return self.applyFunc(other, '__add__', False)
-    def __sub__(self, other):       return self.applyFunc(other, '__sub__')
-    def __isub__(self, other):      return self.applyFunc(other, '__sub__', False)
+    def __add__(self, other):
+        """ passes to __iadd__ """
+        return copy.deepcopy(self).__iadd__(other)
+    def __iadd__(self, other):
+        """ passes __iadd__ to self.applyMaterFunc"""
+        return (hasattr(other, '__iter__') and self.applyMaterFunc or self.applyScalarFunc)(other, '__add__')
+
+    def __sub__(self, other):
+        return copy.deepcopy(self).__isub__(other)
+    def __isub__(self, other):
+        return (hasattr(other, '__iter__') and self.applyMaterFunc or self.applyScalarFunc)(other, '__sub__')
+
     def __div__(self, other):       return self.applyFunc(other, '__div__')
     def __idiv__(self, other):      return self.applyFunc(other, '__div__', False)
-    # def __mul__(self, other):       return self.applyFunc(other, '__mul__')
-    # def __imul__(self, other):      return self.applyFunc(other, '__mul__', False)
+    def __mul__(self, other):       return self.applyFunc(other, '__mul__')
+    def __imul__(self, other):      return self.applyFunc(other, '__mul__', False)
+
     def __floordiv__(self, other):  return self.applyFunc(other, '__floordiv__')
     def __ifloordiv__(self, other): return self.applyFunc(other, '__floordiv__', False)
-    def __pow__(self, other):       return self.applyFunc(other, '__pow__')
-    def __ipow__(self, other):      return self.applyFunc(other, '__pow__', False)
-    def __or__(self, other):        return self.applyFunc(other, '__or__')
-    def __ior__(self, other):       return self.applyFunc(other, '__or__', False)
-    def __and__(self, other):       return self.applyFunc(other, '__and__')
-    def __iand__(self, other):      return self.applyFunc(other, '__and__', False)
-    def __xor__(self, other):       return self.applyFunc(other, '__xor__')
-    def __ixor__(self, other):      return self.applyFunc(other, '__xor__', False)
+    # def __pow__(self, other):       return self.applyFunc(other, '__pow__')
+    # def __ipow__(self, other):      return self.applyFunc(other, '__pow__', False)
+
+    def __or__(self, other):
+        return copy.deepcopy(self).__ior__(other)
+    def __ior__(self, other):
+        return (hasattr(other, '__iter__') and self.applyMaterFunc or self.applyScalarFunc)(other, '__or__')
+    def __and__(self, other):
+        return copy.deepcopy(self).__iand__(other)
+    def __iand__(self, other):
+        return (hasattr(other, '__iter__') and self.applyMaterFunc or self.applyScalarFunc)(other, '__and__')
+    def __xor__(self, other):
+        return copy.deepcopy(self).__ixor__(other)
+    def __ixor__(self, other):
+        return (hasattr(other, '__iter__') and self.applyMaterFunc or self.applyScalarFunc)(other, '__xor__')
 
     def __lshift__(self, fout):
         """ self << fin :: Sets self to the Matrix read from the input file"""
@@ -355,14 +414,17 @@ class Matr(list):
         return self
 
     @property
-    def headers(self):
-        """ headers of the columns"""
+    def header(self):
+        """ header of the columns"""
         return self[0]
     @property
     def ids(self):
         """ identifiers of rows"""
         return [row[0] for row in self]
 
+    def __reversed__(self):
+        """ returns self.Mx"""
+        return self.Mx
     @property
     def T(self):
         """ Transpose (invert flip x and y)
@@ -372,16 +434,11 @@ class Matr(list):
                         c f ]"""
         self = +self
         ret = Matr()
-        for col in range(len(self.headers)):
+        for hcolp in range(len(self.header)):
             ret.append(Matr())
             for row in range(len(self)):
-                ret[col].append(self[row,col])
+                ret[hcolp].append(self[row,hcolp])
         return ret
-    
-    def __reversed__(self):
-        """ returns self.Mx"""
-        return self.Mx
-
     @property
     def Mx(self):
         """ [ n , h1, h2, h3   --> [h3, h2, h1, n
@@ -404,16 +461,11 @@ class Matr(list):
 
 def main():
     m1 = 'testdata.txt' >> Matr()
+    # m3 = Matr.fromfile(open('testdata3.txt'), splitchar = ';', strip = False)
     m2 = 'testdata2.txt' >> Matr()
-    m3 = Matr.fromfile(open('testdata3.txt'), splitchar = ';', strip = False)
-    print(m3.T.Mxy.T,end='\n')
+    m4 = m1 + m2
+    print(m4, end='\n')
     # print(m3.powerset.plainstr)
-    # m3[0,0] = eval('999,999')
-    # print(m3, -m3, +m3, m3.strip(1), reversed(m3), sep='\n\n')
-
-    # import pickle
-    # help(pickle)
-    # pickle.dump(m3, open('testdata4.txt', 'w'))
 
 if __name__ == '__main__':
     main()
